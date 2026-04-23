@@ -193,7 +193,18 @@
   // Toolbar click
   ext.action.onClicked.addListener((tab) => {
     if (tab?.id) {
-      ext.tabs.sendMessage(tab.id, { type: "showOverlay" }).catch(() => {});
+      ext.tabs.sendMessage(tab.id, { type: "showOverlay" }).catch(e => console.log("[JAP] showOverlay error:", e));
+    }
+  });
+
+  // Command handler for keyboard shortcuts
+  ext.commands.onCommand.addListener((command) => {
+    if (command === "toggle-overlay") {
+      ext.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+        if (tabs[0]?.id) {
+          ext.tabs.sendMessage(tabs[0].id, { type: "toggleOverlay" });
+        }
+      });
     }
   });
 

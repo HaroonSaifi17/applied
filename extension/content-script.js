@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  console.log("[JAP] Content script loaded v2.1");
+  console.log("[JAP] Content script loading...");
 
   const ext = typeof browser !== "undefined" ? browser : chrome;
 
@@ -447,18 +447,16 @@ function extractFields() {
 
   function init() {
     showOverlay();
-    setStatus("Ready - click Scan", "info");
+    setStatus("Click Scan to fill", "info");
     
-    // Auto-scan on load if form detected
+    // Auto-scan immediately
     setTimeout(() => {
-      const allEls = document.querySelectorAll('input[name], input[id], textarea, select');
-      if (allEls.length > 3) {
-        scanAndResolve();
-      }
-    }, 800);
+      scanAndResolve();
+    }, 500);
   }
 
   ext.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    console.log("[JAP] Got message:", msg.type);
     try {
       if (msg.type === "extractFields") {
         sendResponse({ ok: true, fields: extractFields() });
@@ -471,6 +469,16 @@ function extractFields() {
       }
       if (msg.type === "showOverlay") {
         showOverlay();
+        sendResponse({ ok: true });
+        return true;
+      }
+      if (msg.type === "toggleOverlay") {
+        const o = $("#jap-overlay");
+        if (o && !o.classList.contains("hidden")) {
+          o.classList.add("hidden");
+        } else {
+          showOverlay();
+        }
         sendResponse({ ok: true });
         return true;
       }
