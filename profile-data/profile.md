@@ -18,16 +18,16 @@ University: Dr. Akhilesh Das Gupta Institute of Professional Studies
 Graduation Year: 2026
 CGPA: 8.0
 
-Professional Experience: 0 years
-Coding Experience: 4 years
-Node.js Years: 4 years
-TypeScript Years: 4 years
-JavaScript Years: 5 years
-AI LLM Years: 1 year
+Experience: 0
+Years of Experience: 0
+Node.js Years: 4
+TypeScript Years: 4
+JavaScript Years: 5
+AI LLM Years: 1
 
 Skills: TypeScript, React, Node.js, Next.js, Angular, Astro, MongoDB, PostgreSQL
 
 Notice Period: Immediate
-Availability: Available immediately
+Availability: Immediate
 Fresher: Yes
-Relocate to Delhi NCR: Yes
+Relocate: Yes
