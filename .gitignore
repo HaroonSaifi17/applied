@@ -1,0 +1,16 @@
+node_modules/
+*.log
+
+.env
+.env.*
+
+profile-data/*
+!profile-data/templates/
+!profile-data/templates/**
+
+proxy/data/
+proxy/cache/
+
+coverage/
+dist/
+tmp/

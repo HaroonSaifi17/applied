@@ -1,0 +1,130 @@
+:root {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --text: #102a43;
+  --muted: #61788f;
+  --line: #d6e2ec;
+  --card: #ffffff;
+  --primary: #0a7ea4;
+  --primary-strong: #086b8c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 10% -15%, #dff6ff 0, transparent 35%),
+    radial-gradient(circle at 100% 120%, #ecfff7 0, transparent 35%),
+    var(--bg);
+  color: var(--text);
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+  display: grid;
+  gap: 16px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.header p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+input {
+  border: 1px solid #bfd2df;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+}
+
+input:focus {
+  outline: 2px solid #9edff2;
+  border-color: #7dc7de;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.primary {
+  background: linear-gradient(140deg, var(--primary), #11a1c9);
+  color: white;
+}
+
+.primary:hover {
+  background: linear-gradient(140deg, var(--primary-strong), #0e86aa);
+}
+
+.secondary {
+  background: #e1f4fb;
+  border-color: #a7ddec;
+  color: #074f66;
+}
+
+.ghost {
+  background: #f1f6fa;
+  border-color: #d4e0e8;
+  color: #2f5167;
+}
+
+.output {
+  margin: 0;
+  min-height: 180px;
+  border-radius: 10px;
+  border: 1px solid #d2e0ea;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow: auto;
+}
