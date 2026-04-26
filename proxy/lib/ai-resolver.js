@@ -195,9 +195,10 @@ function buildSystemMessage() {
     "Use candidate profile facts first. Use answer bank/context chunks as secondary support.",
     "If confidence is low or information is missing, return answer null with low confidence and a short reason.",
     "Never invent personal facts.",
-    "For select/radio style fields, choose from provided options only.",
+    "For select/radio fields, you MUST choose from the provided options only - do NOT add your own value.",
     "For checkbox fields, output booleans true/false.",
     "For numeric years fields, prefer plain numeric answers when known.",
+    "For text fields asking about your experience/projects/skills, give 1-2 short sentences max (form-ready).",
     "Keep answers concise and form-ready.",
   ].join(" ");
 }

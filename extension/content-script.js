@@ -15,11 +15,11 @@
     lastSuggestions: [],
   };
 
-  const GREENHOUSE_ADAPTER = {
-    id: "greenhouse",
+  const LEVER_ADAPTER = {
+    id: "lever",
     matches(hostname) {
       const value = normalizeText(hostname);
-      return value.includes("greenhouse.io") || value.includes("boards.greenhouse.io");
+      return value.includes("lever.co") || value.includes("lever");
     },
     collectCandidateElements() {
       const set = new Set();
@@ -31,8 +31,10 @@
         }
       };
 
-      queryAll('input:not([type="hidden"]), textarea, select').forEach(add);
+      queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select').forEach(add);
       queryAll('[role="combobox"]').forEach(add);
+      queryAll('.form-input, .input').forEach(add);
+      queryAll('input[type="radio"]').forEach(add);
 
       return Array.from(set);
     },
@@ -61,7 +63,55 @@
     },
   };
 
-  const ADAPTERS = [GREENHOUSE_ADAPTER];
+  const GREENHOUSE_ADAPTER = {
+    id: "greenhouse",
+    matches(hostname) {
+      const value = normalizeText(hostname);
+      return value.includes("greenhouse.io") || value.includes("boards.greenhouse.io");
+    },
+    collectCandidateElements() {
+      const set = new Set();
+
+      const add = (el) => {
+        const normalized = normalizeCandidateElement(el);
+        if (normalized) {
+          set.add(normalized);
+        }
+      };
+
+      queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select').forEach(add);
+      queryAll('[role="combobox"]').forEach(add);
+      queryAll('.gh-select, .select-container input').forEach(add);
+      queryAll('input[type="radio"]').forEach(add);
+
+      return Array.from(set);
+    },
+    getFileInput(kind) {
+      const candidates = queryAll('input[type="file"]')
+        .filter((entry) => entry instanceof HTMLInputElement);
+
+      if (!candidates.length) {
+        return null;
+      }
+
+      const keywords = kind === "resume" ? ["resume", "cv"] : ["cover", "letter"];
+
+      let best = candidates[0];
+      let bestScore = scoreFileInput(candidates[0], keywords);
+
+      for (const candidate of candidates.slice(1)) {
+        const score = scoreFileInput(candidate, keywords);
+        if (score > bestScore) {
+          best = candidate;
+          bestScore = score;
+        }
+      }
+
+      return best;
+    },
+  };
+
+  const ADAPTERS = [GREENHOUSE_ADAPTER, LEVER_ADAPTER];
 
   function query(selector, root = document) {
     return root.querySelector(selector);
@@ -335,6 +385,64 @@
     return false;
   }
 
+  function isCustomSelectElement(el) {
+    if (!(el instanceof HTMLElement)) {
+      return false;
+    }
+
+    const className = normalizeText(el.className || "");
+    const role = normalizeText(el.getAttribute("role"));
+    const dataTestId = normalizeText(el.getAttribute("data-testid") || "");
+
+    if (role === "combobox") {
+      return true;
+    }
+
+    if (className.includes("react-select") || className.includes("select__control") || className.includes("select__input")) {
+      return true;
+    }
+
+    if (dataTestId.includes("select")) {
+      return true;
+    }
+
+    const parent = el.closest('[class*="select"], [role="combobox"]');
+    if (parent) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function collectFormElements() {
+    const set = new Set();
+
+    const add = (el) => {
+      const normalized = normalizeCandidateElement(el);
+      if (normalized) {
+        set.add(normalized);
+      }
+    };
+
+    queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select').forEach(add);
+    queryAll('[role="combobox"]').forEach(add);
+    queryAll('.react-select, .select__control').forEach(add);
+
+    return Array.from(set);
+  }
+
+  function collectRadioButtons() {
+    const set = new Set();
+    
+    queryAll('input[type="radio"]').forEach((el) => {
+      if (el instanceof HTMLInputElement) {
+        set.add(el);
+      }
+    });
+
+    return Array.from(set);
+  }
+
   function fieldTypeForElement(el) {
     if (el instanceof HTMLSelectElement) {
       return "select";
@@ -351,13 +459,11 @@
       if (type === "select-one" || type === "select-multiple") {
         return "select";
       }
-      if (isComboboxElement(el)) {
-        return "select";
-      }
+
       return type;
     }
 
-    if (isComboboxElement(el)) {
+    if (isComboboxElement(el) || isCustomSelectElement(el)) {
       return "select";
     }
 
@@ -412,6 +518,101 @@
         return { label, value };
       })
       .filter(Boolean);
+  }
+
+  function extractCustomSelectOptions(el) {
+    const options = [];
+
+    const className = normalizeText(el.className || "");
+    const role = normalizeText(el.getAttribute("role"));
+
+    if (className.includes("react-select") || className.includes("select__control")) {
+      const menu = el.querySelector('[class*="menu"], [class*="__menu"], [role="listbox"]');
+      if (menu) {
+        const items = menu.querySelectorAll('[class*="option"], [class*="item"], div[role="option"]');
+        items.forEach((item) => {
+          const label = cleanText(item.textContent || "");
+          if (label) {
+            options.push({ label, value: label });
+          }
+        });
+        return options;
+      }
+    }
+
+    if (role === "combobox") {
+      const listboxId = el.getAttribute("aria-controls") || el.getAttribute("data-listbox-id");
+      let listbox = null;
+      
+      if (listboxId) {
+        listbox = document.getElementById(listboxId);
+      } else {
+        listbox = el.nextElementSibling;
+        while (listbox && !listbox.matches('[role="listbox"], .select-options, .dropdown-menu')) {
+          listbox = listbox.nextElementSibling;
+        }
+      }
+
+      if (listbox) {
+        const items = listbox.querySelectorAll('[role="option"], .option, .select-option, li');
+        items.forEach((item) => {
+          const label = cleanText(item.textContent || "");
+          const value = item.getAttribute("data-value") || item.getAttribute("value") || label;
+          if (label) {
+            options.push({ label, value });
+          }
+        });
+      }
+    }
+
+    return options;
+  }
+
+  function extractGreenhouseSelectOptions(container) {
+    const options = [];
+    
+    if (!container) {
+      return options;
+    }
+
+    const dropdown = container.querySelector('[class*="menu"], [role="listbox"]');
+    if (!dropdown) {
+      return options;
+    }
+
+    const items = dropdown.querySelectorAll('[class*="option"], div[role="option"]');
+    items.forEach((item) => {
+      const label = cleanText(item.textContent || "");
+      let value = item.getAttribute("data-value");
+      
+      if (!value) {
+        const textValue = item.textContent || "";
+        if (normalizeText(textValue) === "yes") {
+          value = "1";
+        } else if (normalizeText(textValue) === "no") {
+          value = "0";
+        } else {
+          value = label;
+        }
+      }
+      
+      if (label) {
+        options.push({ label, value: parseInt(value, 10) });
+      }
+    });
+
+    if (!options.length) {
+      const hiddenInput = container.querySelector('input[aria-hidden="true"]');
+      if (hiddenInput) {
+        const initialValue = hiddenInput.defaultValue;
+        if (initialValue) {
+          options.push({ label: "Yes", value: 1 });
+          options.push({ label: "No", value: 0 });
+        }
+      }
+    }
+
+    return options;
   }
 
   function createFieldId(meta, index) {
@@ -500,9 +701,13 @@
 
       const options = type === "select" && el instanceof HTMLSelectElement
         ? extractSelectOptions(el)
-        : type === "radio"
-          ? extractRadioOptions(name)
-          : [];
+        : type === "select" && isGreenhouseSelect(el)
+          ? extractGreenhouseSelectOptions(findGreenhouseSelectContainer(el))
+          : type === "select" && (isCustomSelectElement(el) || isComboboxElement(el))
+            ? extractCustomSelectOptions(el)
+            : type === "radio"
+              ? extractRadioOptions(name)
+              : [];
 
       const field = {
         id: fieldId,
@@ -659,9 +864,140 @@
   }
 
   function dispatchInputEvents(el) {
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-    el.dispatchEvent(new Event("blur", { bubbles: true }));
+    el.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+    el.dispatchEvent(new Event("blur", { bubbles: true, cancelable: true }));
+  }
+
+  function dispatchFocusAndBlurEvents(el) {
+    el.dispatchEvent(new FocusEvent("focus", { bubbles: true, cancelable: true }));
+    el.dispatchEvent(new FocusEvent("blur", { bubbles: true, cancelable: true }));
+  }
+
+  function syncNativeInputValue(el, value) {
+    try {
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(el instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype, "value")?.set;
+      const nativeInputValueGetter = Object.getOwnPropertyDescriptor(el instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype, "value")?.get;
+      
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(el, value);
+      } else {
+        el.value = value;
+      }
+    } catch (e) {
+      el.value = value;
+    }
+    
+    const event = new Event("input", { bubbles: true, cancelable: true });
+    event.simulated = true;
+    el.dispatchEvent(event);
+  }
+
+  function isGreenhouseSelect(el) {
+    if (!(el instanceof HTMLElement)) {
+      return false;
+    }
+
+    const className = normalizeText(el.className || "");
+    const parent = el.closest('.select-shell, [class*="select__control"]');
+    
+    if (className.includes("select__input") || parent) {
+      return true;
+    }
+
+    if (el.getAttribute('aria-expanded') !== null) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function findGreenhouseSelectContainer(el) {
+    let current = el;
+    let depth = 0;
+    
+    while (current && depth < 10) {
+      const className = normalizeText(current.className || "");
+      if (className.includes("select-shell") || className.includes("select__control")) {
+        return current;
+      }
+      current = current.parentElement;
+      depth += 1;
+    }
+    
+    return null;
+  }
+
+  function findGreenhouseHiddenInput(container) {
+    if (!container) {
+      return null;
+    }
+    
+    const hidden = container.querySelector('input[aria-hidden="true"], input[tabindex="-1"]');
+    return hidden instanceof HTMLInputElement ? hidden : null;
+  }
+
+  function fillGreenhouseSelect(inputEl, displayValue, numericValue) {
+    if (!inputEl) {
+      return false;
+    }
+
+    const container = findGreenhouseSelectContainer(inputEl);
+    if (!container) {
+      return false;
+    }
+
+    let targetDisplay = normalizeText(displayValue);
+    let targetValue;
+    
+    if (numericValue !== undefined) {
+      targetValue = String(numericValue);
+    } else {
+      if (targetDisplay === "yes" || targetDisplay === "true") {
+        targetValue = "1";
+      } else if (targetDisplay === "no" || targetDisplay === "false") {
+        targetValue = "0";
+      } else {
+        targetValue = targetDisplay;
+      }
+    }
+    
+    const visibleInput = container.querySelector('.select__input');
+    if (visibleInput) {
+      visibleInput.focus();
+      syncNativeInputValue(visibleInput, targetDisplay);
+    }
+
+    const hiddenInput = findGreenhouseHiddenInput(container);
+    if (hiddenInput) {
+      syncNativeInputValue(hiddenInput, targetValue);
+    }
+
+    container.dispatchEvent(new Event("focus", { bubbles: true, cancelable: true }));
+    container.dispatchEvent(new Event("blur", { bubbles: true, cancelable: true }));
+    
+    const form = container.closest("form");
+    if (form) {
+      form.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    return true;
+  }
+
+  function findReactSelectControl(el) {
+    let current = el;
+    let depth = 0;
+    
+    while (current && depth < 10) {
+      const className = normalizeText(current.className || "");
+      if (className.includes("react-select") || className.includes("select__control")) {
+        return current;
+      }
+      current = current.parentElement;
+      depth += 1;
+    }
+    
+    return null;
   }
 
   function fillSelect(selectElement, value) {
@@ -702,6 +1038,127 @@
     return true;
   }
 
+  function isReactSelectComponent(el) {
+    if (!(el instanceof HTMLElement)) {
+      return false;
+    }
+
+    const className = normalizeText(el.className || "");
+    const role = normalizeText(el.getAttribute("role"));
+    
+    if (className.includes("react-select") || className.includes("select__control") || role === "combobox") {
+      return true;
+    }
+
+    const parent = el.closest(".react-select, .select__control, [class*='react-select']");
+    if (parent) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function findReactSelectControl(el) {
+    let current = el;
+    let depth = 0;
+    
+    while (current && depth < 10) {
+      const className = normalizeText(current.className || "");
+      if (className.includes("react-select") || className.includes("select__control")) {
+        return current;
+      }
+      current = current.parentElement;
+      depth += 1;
+    }
+    
+    return null;
+  }
+
+  function findReactSelectDropdown(control) {
+    if (!control) {
+      return null;
+    }
+    
+    const menu = control.querySelector('[class*="menu"], [class*="-dropdown"], [class*="__menu"]');
+    return menu;
+  }
+
+  function findReactSelectOption(dropdown, value) {
+    if (!dropdown) {
+      return null;
+    }
+
+    const target = normalizeText(value);
+    const options = dropdown.querySelectorAll('[class*="option"], [class*="item"], div[role="option"]');
+    
+    for (const option of options) {
+      const label = normalizeText(option.textContent || "");
+      if (label.includes(target) || target.includes(label) || label === target) {
+        return option;
+      }
+    }
+    
+    return null;
+  }
+
+  function fillReactSelect(el, value) {
+    const control = findReactSelectControl(el);
+    if (!control) {
+      return false;
+    }
+
+    const target = String(value || "").trim();
+    if (!target) {
+      return false;
+    }
+
+    control.focus();
+    control.click();
+
+    const input = control.querySelector('input, [class*="input"]');
+    if (input) {
+      syncNativeInputValue(input, target);
+    }
+
+    dispatchInputEvents(input || control);
+
+    return true;
+  }
+
+  function fillCustomSelect(el, value) {
+    if (isGreenhouseSelect(el)) {
+      const container = findGreenhouseSelectContainer(el);
+      if (container) {
+        const options = extractGreenhouseSelectOptions(container);
+        const target = normalizeText(value);
+        
+        for (const opt of options) {
+          if (normalizeText(opt.label) === target || target.includes(normalizeText(opt.label)) || normalizeText(opt.label).includes(target)) {
+            return fillGreenhouseSelect(el, opt.label, opt.value);
+          }
+        }
+        
+        return fillGreenhouseSelect(el, value, undefined);
+      }
+    }
+
+    if (isReactSelectComponent(el)) {
+      return fillReactSelect(el, value);
+    }
+
+    const role = normalizeText(el.getAttribute("role"));
+    if (role === "combobox") {
+      return fillCombobox(el, value);
+    }
+
+    const className = normalizeText(el.className || "");
+    if (className.includes("select") || el.tagName === "SELECT") {
+      return fillSelect(el, value);
+    }
+
+    return fillCombobox(el, value);
+  }
+
   function fillRadioGroup(groupName, value) {
     if (!groupName) {
       return false;
@@ -715,10 +1172,18 @@
     }
 
     const target = normalizeText(value);
+    let mappedValue = target;
+    
+    if (target === "yes" || target === "true") {
+      mappedValue = "1";
+    } else if (target === "no" || target === "false") {
+      mappedValue = "0";
+    }
+    
     let matched = null;
 
     for (const radio of radios) {
-      if (normalizeText(radio.value) === target) {
+      if (normalizeText(radio.value) === target || normalizeText(radio.value) === mappedValue) {
         matched = radio;
         break;
       }
@@ -732,14 +1197,50 @@
           break;
         }
       }
+
+      if (!matched) {
+        for (const radio of radios) {
+          const labelText = normalizeText(nodeText(radio.nextElementSibling) || "");
+          if (labelText && (labelText.includes(target) || target.includes(labelText))) {
+            matched = radio;
+            break;
+          }
+        }
+      }
+
+      if (!matched) {
+        for (const radio of radios) {
+          const parent = radio.parentElement;
+          if (parent) {
+            const labelText = normalizeText(nodeText(parent) || "");
+            if (labelText && (labelText.includes(target) || target.includes(labelText))) {
+              matched = radio;
+              break;
+            }
+          }
+        }
+      }
     }
 
     if (!matched) {
       return false;
     }
 
+    matched.focus();
+    matched.click();
     matched.checked = true;
-    dispatchInputEvents(matched);
+    
+    matched.dispatchEvent(new Event("focus", { bubbles: true, cancelable: true }));
+    matched.dispatchEvent(new Event("click", { bubbles: true, cancelable: true }));
+    matched.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+    matched.dispatchEvent(new Event("blur", { bubbles: true, cancelable: true }));
+
+    const form = matched.closest("form");
+    if (form) {
+      const event = new Event("change", { bubbles: true });
+      form.dispatchEvent(event);
+    }
+
     return true;
   }
 
@@ -810,7 +1311,7 @@
       if (element instanceof HTMLSelectElement) {
         return fillSelect(element, item.value);
       }
-      return fillCombobox(element, item.value);
+      return fillCustomSelect(element, item.value);
     }
 
     if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
@@ -837,79 +1338,19 @@
     return { appliedCount, skippedCount };
   }
 
-  function setStatus(text) {
-    const statusNode = query("#jap-status");
-    if (statusNode) {
-      statusNode.textContent = String(text || "");
-    }
-  }
+  let profileFileHints = { resume: null, coverLetter: null };
 
-  function suggestionValueToText(value) {
-    if (typeof value === "boolean") {
-      return value ? "Yes" : "No";
-    }
-    if (value === null || typeof value === "undefined") {
-      return "";
-    }
-    return String(value);
-  }
-
-  function renderFields(fields, suggestions) {
-    const container = query("#jap-fields");
-    if (!container) {
-      return;
-    }
-
-    container.innerHTML = "";
-
-    if (!fields.length) {
-      const empty = document.createElement("div");
-      empty.className = "jap-empty";
-      empty.textContent = "No fillable fields found on this page.";
-      container.appendChild(empty);
-      return;
-    }
-
-    const suggestionMap = new Map();
-    (suggestions || []).forEach((entry) => {
-      if (entry && entry.fieldId) {
-        suggestionMap.set(entry.fieldId, entry);
+  async function loadProfileFileHints() {
+    try {
+      const response = await ext.runtime.sendMessage({ type: "getProfileFiles" });
+      if (response && response.ok && response.payload) {
+        profileFileHints = {
+          resume: response.payload.resume,
+          coverLetter: response.payload.coverLetter,
+        };
       }
-    });
-
-    for (const field of fields) {
-      if (field.isFile) {
-        continue;
-      }
-
-      const suggestion = suggestionMap.get(field.id) || null;
-      const row = document.createElement("div");
-      row.className = "jap-field";
-
-      const labelNode = document.createElement("div");
-      labelNode.className = "jap-field-label";
-
-      const confidenceText = suggestion && typeof suggestion.confidence === "number"
-        ? ` (${Math.round(clamp(suggestion.confidence, 0, 1) * 100)}%)`
-        : "";
-
-      labelNode.textContent = `${field.label || field.id}${field.required ? " *" : ""}${confidenceText}`;
-
-      const input = document.createElement("input");
-      input.className = "jap-field-input";
-      input.dataset.id = field.id;
-      input.value = suggestionValueToText(suggestion && suggestion.value);
-
-      const reasonNode = document.createElement("div");
-      reasonNode.className = "jap-field-reason";
-      reasonNode.textContent = suggestion && suggestion.reason
-        ? String(suggestion.reason)
-        : "No model reason available.";
-
-      row.appendChild(labelNode);
-      row.appendChild(input);
-      row.appendChild(reasonNode);
-      container.appendChild(row);
+    } catch {
+      profileFileHints = { resume: null, coverLetter: null };
     }
   }
 
@@ -917,185 +1358,72 @@
     if (!getActiveAdapter()) {
       return null;
     }
-
     let overlay = query("#jap-overlay");
     if (overlay) {
       overlay.classList.remove("hidden");
       return overlay;
     }
-
     overlay = document.createElement("div");
     overlay.id = "jap-overlay";
     overlay.className = "jap-overlay";
     overlay.innerHTML = [
       '<div class="jap-header">',
-      '  <span class="jap-title">Job Autofill Pro</span>',
-      '  <div class="jap-btns">',
-      '    <button id="jap-scan" class="jap-btn jap-btn-primary">Scan</button>',
-      '    <button id="jap-fill" class="jap-btn jap-btn-success">Apply</button>',
-      '    <button id="jap-resume" class="jap-btn jap-btn-resume">Resume</button>',
-      '    <button id="jap-cover" class="jap-btn jap-btn-resume">Cover</button>',
-      '    <button id="jap-close" class="jap-btn jap-btn-ghost">✕</button>',
-      "  </div>",
-      "</div>",
-      '<div class="jap-body">',
-      '  <div id="jap-status" class="jap-status">Click Scan to fetch suggestions.</div>',
-      '  <div id="jap-fields" class="jap-fields"></div>',
+      '  <button id="jap-fill" class="jap-btn jap-btn-primary">Fill</button>',
+      '  <div id="jap-status" class="jap-status">Ready</div>',
+      '  <button id="jap-close" class="jap-btn jap-btn-ghost">✕</button>',
       "</div>",
     ].join("\n");
-
     document.body.appendChild(overlay);
-
-    query("#jap-scan", overlay).onclick = runScan;
-    query("#jap-fill", overlay).onclick = runApply;
-    query("#jap-resume", overlay).onclick = () => triggerFilePicker("resume");
-    query("#jap-cover", overlay).onclick = () => triggerFilePicker("cover");
+    query("#jap-fill", overlay).onclick = () => runScan().then(() => runApply());
     query("#jap-close", overlay).onclick = () => overlay.classList.add("hidden");
-
     return overlay;
   }
 
-  async function runScan() {
-    if (!getActiveAdapter()) {
-      setStatus("This page is not a supported Greenhouse application form.");
-      return;
+  function setStatus(text) {
+    const statusNode = query("#jap-status");
+    if (statusNode) {
+      statusNode.textContent = String(text || "");
     }
+  }
 
-    setStatus("Scanning fields and requesting suggestions...");
-
+  async function runScan() {
+    setStatus("Scanning...");
     try {
       const fields = extractFields();
       if (!fields.length) {
-        renderFields([], []);
-        setStatus("No fillable fields detected.");
+        setStatus("No fields found");
         return;
       }
-
       const response = await ext.runtime.sendMessage({ type: "scanAndResolve", fields });
       if (!response || !response.ok) {
-        renderFields(fields, []);
-        setStatus(`Proxy error: ${(response && response.error) || "unknown error"}`);
+        setStatus(`Error: ${response?.error || "failed"}`);
         return;
       }
-
-      const suggestions = response.session && Array.isArray(response.session.suggestions)
-        ? response.session.suggestions
-        : [];
-
-      STATE.lastSuggestions = suggestions;
-      renderFields(fields, suggestions);
-
-      const suggestedCount = suggestions.filter((entry) => entry && entry.suggested).length;
-      setStatus(`Found ${fields.length} fields. Suggested ${suggestedCount}. Review and click Apply.`);
-    } catch (error) {
-      renderFields(extractFields(), []);
-      setStatus(`Scan failed: ${error && error.message ? error.message : String(error)}`);
+      STATE.lastSuggestions = response.session?.suggestions || [];
+      setStatus(`Found ${fields.length} fields`);
+    } catch (e) {
+      setStatus(`Error: ${e?.message || e}`);
     }
-  }
-
-  function collectOverlayItems() {
-    const container = query("#jap-fields");
-    if (!container) {
-      return [];
-    }
-
-    const items = [];
-    queryAll(".jap-field-input", container).forEach((entry) => {
-      if (!(entry instanceof HTMLInputElement)) {
-        return;
-      }
-
-      const fieldId = String(entry.dataset.id || "").trim();
-      if (!fieldId) {
-        return;
-      }
-
-      const value = String(entry.value || "").trim();
-      if (!value) {
-        return;
-      }
-
-      items.push({ fieldId, value });
-    });
-
-    return items;
-  }
-
-  function buildApprovalPayload(items) {
-    const suggestionMap = new Map();
-    STATE.lastSuggestions.forEach((entry) => {
-      if (entry && entry.fieldId && entry.fingerprint) {
-        suggestionMap.set(entry.fieldId, entry);
-      }
-    });
-
-    const approvals = [];
-    for (const item of items) {
-      const suggestion = suggestionMap.get(item.fieldId);
-      if (!suggestion || !suggestion.fingerprint) {
-        continue;
-      }
-
-      approvals.push({
-        fingerprint: suggestion.fingerprint,
-        value: item.value,
-      });
-    }
-
-    return approvals;
   }
 
   async function runApply() {
-    const items = collectOverlayItems();
-    if (!items.length) {
-      setStatus("No values to apply.");
-      return;
+    setStatus("Applying...");
+    try {
+      const result = applyBatch(STATE.lastSuggestions);
+      setStatus(`Applied ${result.appliedCount} fields`);
+    } catch (e) {
+      setStatus(`Error: ${e?.message || e}`);
     }
-
-    const result = applyBatch(items);
-    setStatus(`Applied ${result.appliedCount} fields. Skipped ${result.skippedCount}.`);
-
-    const approvals = buildApprovalPayload(items);
-    if (approvals.length) {
-      ext.runtime.sendMessage({ type: "rememberAnswers", approvals }).catch(() => {});
-    }
-  }
-
-  function triggerFilePicker(kind) {
-    const adapter = getActiveAdapter();
-    if (!adapter) {
-      setStatus("Unsupported page.");
-      return;
-    }
-
-    const input = adapter.getFileInput(kind);
-    if (!input) {
-      setStatus(`No ${kind} upload field found.`);
-      return;
-    }
-
-    const label = input.id ? query(`label[for="${cssEscape(input.id)}"]`) : null;
-    if (label instanceof HTMLElement) {
-      label.click();
-    } else {
-      input.click();
-    }
-
-    setStatus(`Select your ${kind} file from the file picker.`);
   }
 
   function boot() {
-    if (STATE.booted) {
-      return;
+    if (!STATE.booted) {
+      STATE.booted = true;
+      if (getActiveAdapter()) {
+        loadProfileFileHints();
+        showOverlay();
+      }
     }
-    STATE.booted = true;
-
-    if (!getActiveAdapter()) {
-      return;
-    }
-
-    showOverlay();
-    setTimeout(runScan, 450);
   }
 
   ext.runtime.onMessage.addListener((msg, sender, sendResponse) => {
