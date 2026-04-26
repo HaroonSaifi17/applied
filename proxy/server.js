@@ -21,6 +21,7 @@ dotenv.config();
 
 const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || 8787);
+const PROFILE_DIR = path.resolve(__dirname, "..", "..", "profile-data");
 
 if (HOST !== "127.0.0.1" && HOST !== "localhost") {
   throw new Error("For safety, HOST must be 127.0.0.1 or localhost.");
@@ -113,6 +114,33 @@ function normalizeSuggestionMap(items) {
   }
 
   return map;
+}
+
+function findProfileFilePath(kind) {
+  const profile = profileStore.getProfile();
+  const files = profile.files || [];
+
+  if (kind === "resume") {
+    const resumeFiles = files.filter((f) => {
+      const name = f.source || "";
+      return /resume|cv/i.test(name);
+    });
+    if (resumeFiles.length) {
+      return path.join(PROFILE_DIR, resumeFiles[0].source);
+    }
+  }
+
+  if (kind === "coverLetter") {
+    const coverFiles = files.filter((f) => {
+      const name = f.source || "";
+      return /cover[-_]?letter/i.test(name);
+    });
+    if (coverFiles.length) {
+      return path.join(PROFILE_DIR, coverFiles[0].source);
+    }
+  }
+
+  return null;
 }
 
 function mergeSuggestions(fields, deterministic, ai, threshold) {
@@ -258,6 +286,26 @@ async function bootstrap() {
         ok: true,
         remembered: sanitized.length,
         memorySize: answerMemory.entries().length,
+      });
+    } catch (error) {
+      response.status(500).json({
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.get("/profile-files", async (_request, response) => {
+    try {
+      const files = profileStore.getProfile().files || [];
+      const resumePath = findProfileFilePath("resume");
+      const coverPath = findProfileFilePath("coverLetter");
+
+      response.json({
+        ok: true,
+        files: files.map((f) => f.source),
+        resume: resumePath,
+        coverLetter: coverPath,
       });
     } catch (error) {
       response.status(500).json({

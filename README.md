@@ -1,89 +1,153 @@
-# Greenhouse AI Autofill
+# Job Autofill Pro
 
-Firefox extension + localhost proxy that fills Greenhouse job applications using deterministic field mapping and AI-generated answers from your profile data. Works with GitHub Copilot Models.
+A browser extension that automatically fills job application forms using your profile data. Built with privacy in mind - your data stays local and is only used to fill forms on your device.
 
-## Quick Start
+## Features
 
-### 1. Profile Data
+- **Automatic Form Filling**: One-click autofill for job application forms
+- **Smart Field Detection**: Automatically detects and fills:
+  - Personal info (name, email, phone)
+  - Experience details (years, current role, company)
+  - Education (degree, university, graduation year)
+  - Skills and links (GitHub, LinkedIn, portfolio)
+  - Custom questions (Yes/No options, dropdowns, radio buttons)
 
-Create two files in `profile-data/`:
+- **Multi-Site Support**: Works with popular job boards including:
+  - Greenhouse (boards.greenhouse.io)
+  - Lever (lever.co)
+  - And many more
 
-**`profile.v2.json`** - your core facts:
+- **React Select Handling**: Properly handles custom dropdown components used by modern job sites
+- **Numeric Value Mapping**: Correctly maps "Yes"/"No" to numeric values (1/0) as required by some forms
+
+- **Privacy-First**: Your profile data stays on your device
+
+## Supported Job Boards
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| Greenhouse | Supported | Full support including custom selects |
+| Lever | Supported | Standard input handling |
+| Workday | Partial | Basic field support |
+| Ashby | Supported | Standard support |
+| Custom Sites | Supported | Generic autofill |
+
+## Installation
+
+### Development/Testing
+
+1. Clone the repository:
+```bash
+git clone https://github.com/HaroonSaifi17/job-autofill-pro.git
+cd job-autofill-pro
+```
+
+2. Load in Firefox:
+   - Go to `about:debugging`
+   - Click "This Firefox"
+   - Click "Load Temporary Add-on"
+   - Select `extension/manifest.json`
+
+### Building for Production
+
+1. Package the extension:
+```bash
+cd extension
+zip -r ../job-autofill-pro.zip *
+```
+
+2. Load in Firefox:
+   - Go to `about:addons`
+   - Click gear icon → "Install Add-on From File"
+   - Select the zip file
+
+## Usage
+
+1. **Configure your profile**: Edit `profile-data/profile.v2.json` with your details
+
+2. **Fill a form**: 
+   - Navigate to a job application page
+   - Click the extension icon in toolbar
+   - Click "Fill" to autofill all fields
+
+### Profile Data Format
+
 ```json
 {
-  "fullName": "Your Name",
-  "firstName": "Your",
-  "lastName": "Name",
-  "email": "you@example.com",
-  "phone": "+91 9876543210",
-  "linkedInUrl": "https://linkedin.com/in/yourprofile",
-  "githubUrl": "https://github.com/yourprofile",
-  "location": "City, Country",
-  "degree": "B.Tech in CS",
-  "university": "Your University",
-  "graduationYear": "2026",
-  "totalExperience": "0",
-  "technicalSkills": "TypeScript, React, Node.js",
+  "fullName": "John Doe",
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john@example.com",
+  "phone": "1234567890",
+  "linkedInUrl": "https://linkedin.com/in/johndoe",
+  "githubUrl": "https://github.com/johndoe",
+  "websiteUrl": "https://johndoe.dev",
+  "location": "New York",
+  "city": "New York",
+  "state": "NY",
+  "country": "USA",
+  "currentRole": "Software Engineer",
+  "totalExperience": "5",
+  "codingExperience": "5",
   "noticePeriod": "Immediate",
-  "workAuthorization": true,
-  "needsSponsorship": false,
-  "willingToRelocate": "Yes"
+  "currentCTC": "100000",
+  "expectedCTC": "150000"
 }
 ```
 
-**`answers.v2.txt`** - Q/A for common screening questions:
+## How It Works
+
 ```
-Question: Why are you interested in this role?
-Answer: Your specific answer here.
-
-Question: Are you authorized to work?
-Answer: Yes.
-
-Notice period :: Immediate
-Willing to relocate :: Yes
-```
-
-Also put your resume at `profile-data/resume.pdf`.
-
-### 2. Configure Token
-
-```bash
-cp .env.example .env
-# Set GITHUB_TOKEN=ghp_...
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  User Profile   │────>│  Content Script │────>│  Job Form       │
+│  (JSON file)    │     │  (Browser Ext)   │     │  (Target Site) │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                              │
+                              v
+                       ┌──────────────────┐
+                       │  AI Resolver     │
+                       │  (Local Proxy)   │
+                       └──────────────────┘
 ```
 
-Your token needs `models:read` permission (Copilot Fine-Tuned Models or Models API scope).
+1. **Field Detection**: Scans the page for form elements (inputs, selects, radio buttons)
+2. **Field Mapping**: Uses the resolver to match profile fields to form fields
+3. **Smart Filling**: 
+   - Native inputs: Direct value setting + events
+   - React/Select components: Bypassing React state + proper events
+   - Greenhouse selects: Sets both display and hidden inputs
 
-### 3. Run
+## API Integration (Optional)
 
+The extension can optionally use a local AI proxy for better field matching:
+
+1. Start the local proxy:
 ```bash
 npm install
 npm run start:proxy
 ```
 
-Proxy starts at `http://127.0.0.1:8787`.
+2. Configure in extension (optional)
 
-### 4. Load Extension
+## Tech Stack
 
-1. Open `about:debugging#/runtime/this-firefox`
-2. Click **Load Temporary Add-on**
-3. Select `extension/manifest.json`
+- **JavaScript**: Vanilla JS (no framework dependencies)
+- **Browser APIs**: Web Extensions API
+- **Styling**: CSS
 
-### 5. Use
+## Contributing
 
-1. Open a Greenhouse job application page
-2. Click the extension icon
-3. Click **Scan** - fields get fetched and resolved
-4. Review suggestions in the overlay
-5. Click **Apply** to fill the form
-6. Click **Resume** / **Cover** to trigger file picker
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing`)
+5. Open a Pull Request
 
-If you update profile files, click **Reload Profile** in extension settings.
+## License
 
-## How It Works
+MIT License - see [LICENSE](LICENSE) for details.
 
-- **Deterministic resolver** maps fields by label keywords to your profile facts
-- **Answer memory** remembers fields you've manually approved before
-- **AI resolver** generates answers for remaining fields using context from your profile and Q/A bank
-- **15-minute response cache** avoids duplicate AI calls for the same form
-- No auto-submit - you review every suggestion before applying
+## Acknowledgments
+
+- Inspired by tools like GitHub Copilot and similar autofill extensions
+- Greenhouse select handling based on React state management patterns

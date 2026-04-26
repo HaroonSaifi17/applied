@@ -96,14 +96,14 @@
     return session;
   }
 
-  async function rememberAnswers(approvals) {
+async function rememberAnswers(approvals) {
     const payload = {
       approvals: Array.isArray(approvals)
         ? approvals
             .map((entry) => ({
-              fingerprint: String(entry && entry.fingerprint ? entry.fingerprint : "").trim(),
-              value: entry ? entry.value : null,
-            }))
+                fingerprint: String(entry && entry.fingerprint ? entry.fingerprint : "").trim(),
+                value: entry ? entry.value : null,
+              }))
             .filter((entry) => entry.fingerprint)
         : [],
     };
@@ -117,6 +117,10 @@
       remembered: Number(result && result.remembered ? result.remembered : 0),
       memorySize: Number(result && result.memorySize ? result.memorySize : 0),
     };
+  }
+
+  async function getProfileFiles() {
+    return callProxy("/profile-files", null, "GET");
   }
 
   async function applyAll() {
@@ -179,6 +183,12 @@
 
     if (msg.type === "proxyHealth") {
       callProxy("/health", null, "GET").then((r) => sendResponse({ ok: true, payload: r }))
+        .catch((e) => sendResponse({ ok: false, error: e.message }));
+      return true;
+    }
+
+    if (msg.type === "getProfileFiles") {
+      getProfileFiles().then((r) => sendResponse({ ok: true, payload: r }))
         .catch((e) => sendResponse({ ok: false, error: e.message }));
       return true;
     }
