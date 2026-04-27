@@ -41,27 +41,27 @@ const FACT_MATCH_RULES = [
   },
   {
     key: "location",
-    keywords: ["location", "where are you based", "current location", "address"],
+    keywords: ["current location", "where are you based"],
   },
   {
     key: "city",
-    keywords: ["city", "town", "current city"],
+    keywords: ["current city", "town"],
   },
   {
     key: "state",
-    keywords: ["state", "province", "region"],
+    keywords: ["current state", "province", "region"],
   },
   {
     key: "country",
-    keywords: ["country", "nation", "nationality"],
+    keywords: ["current country", "nation", "nationality"],
   },
   {
     key: "workAuthorization",
-    keywords: ["authorized to work", "work authorization", "work permit"],
+    keywords: ["authorized to work", "work authorization", "work permit", "eligible to work", "legally authorized"],
   },
   {
     key: "needsSponsorship",
-    keywords: ["sponsorship", "visa sponsorship", "need sponsorship", "require sponsorship"],
+    keywords: ["sponsorship", "visa sponsorship", "need sponsorship", "require sponsorship", "require a visa"],
   },
   {
     key: "salaryExpectation",
