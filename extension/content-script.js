@@ -452,6 +452,34 @@
     return "";
   }
 
+  function getLabelByProximity(el) {
+    
+    let sibling = el.previousElementSibling;
+    let depth = 0;
+    while (sibling && depth < 3) {
+      const text = nodeText(sibling);
+      if (text && text.length > 5) {
+        return text;
+      }
+      sibling = sibling.previousElementSibling;
+      depth += 1;
+    }
+
+    
+    let parent = el.parentElement;
+    if (parent) {
+      let parentSibling = parent.previousElementSibling;
+      if (parentSibling) {
+        const text = nodeText(parentSibling);
+        if (text && text.length > 5) {
+          return text;
+        }
+      }
+    }
+
+    return "";
+  }
+
   function getFieldLabel(el) {
     const fieldset = el.closest("fieldset");
     const legendText = fieldset ? nodeText(fieldset.querySelector("legend")) : "";
@@ -461,6 +489,7 @@
       getLabelByAria(el),
       legendText,
       getLabelByContainer(el),
+      getLabelByProximity(el),
       cleanText(el.getAttribute("placeholder")),
       cleanText(el.getAttribute("name")),
       cleanText(el.getAttribute("id")),
