@@ -68,7 +68,7 @@
   async function callProxy(endpoint, payload, method = "POST") {
     const cfg = await getConfig();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), 40000);
     const requestInit = {
       method,
       headers: { "Content-Type": "application/json" },
@@ -95,7 +95,7 @@
       return data;
     } catch (error) {
       if (error && error.name === "AbortError") {
-        throw new Error("Proxy request timed out after 30s");
+        throw new Error("Proxy request timed out after 40s");
       }
       if (error && (error.message.includes("Failed to fetch") || error.message.includes("NetworkError"))) {
         throw new Error(`Proxy not reachable at ${cfg.proxyBaseUrl}. Is the proxy server running?`);
