@@ -83,7 +83,7 @@ function parseJsonFromModel(rawText) {
   try {
     return JSON.parse(text);
   } catch {
-    // Continue to fence extraction.
+    
   }
 
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -91,7 +91,7 @@ function parseJsonFromModel(rawText) {
     try {
       return JSON.parse(fenceMatch[1].trim());
     } catch {
-      // Continue to object extraction.
+      
     }
   }
 

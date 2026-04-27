@@ -1,21 +1,35 @@
 {
-  "manifest_version": 3,
-  "name": "Job Autofill Pro",
-  "version": "2.0.5",
-  "description": "One-click autofill for job applications",
+  "manifest_version": 2,
+  "name": "Applied",
+  "version": "2.1.0",
+  "description": "Smart, one-click job application assistant.",
+  "icons": {
+    "128": "logo.svg"
+  },
   "permissions": [
     "storage",
     "tabs",
     "activeTab",
-    "scripting"
-  ],
-  "host_permissions": [
     "https://*/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
   "background": {
-    "scripts": ["background.js"]
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "browser_action": {
+    "default_title": "Applied",
+    "default_icon": "logo.svg"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "applied@haroon.dev"
+    }
   },
   "content_scripts": [
     {
@@ -24,17 +38,5 @@
       "css": ["overlay.css"],
       "run_at": "document_idle"
     }
-  ],
-  "action": {
-    "default_title": "Job Autofill Pro"
-  },
-  "options_ui": {
-    "page": "options/options.html",
-    "open_in_tab": true
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "job-autofill-pro@haroon.dev"
-    }
-  }
+  ]
 }

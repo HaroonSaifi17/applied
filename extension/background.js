@@ -203,7 +203,7 @@ async function rememberAnswers(approvals) {
     return { appliedCount: res?.appliedCount || 0 };
   }
 
-  // Message handler
+  
   ext.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "scanAndResolve") {
       resolveFields(msg.fields, sender, msg.applicationContext).then((s) => sendResponse({ ok: true, session: s }))
@@ -267,9 +267,12 @@ async function rememberAnswers(approvals) {
     return false;
   });
 
-  // Toolbar click
-  ext.action.onClicked.addListener((tab) => {
-    if (tab?.id) ext.tabs.sendMessage(tab.id, { type: "showOverlay" }).catch(() => {});
-  });
+  
+  const action = ext.browserAction || ext.action;
+  if (action && action.onClicked) {
+    action.onClicked.addListener((tab) => {
+      if (tab?.id) ext.tabs.sendMessage(tab.id, { type: "showOverlay" }).catch(() => {});
+    });
+  }
 
 })();

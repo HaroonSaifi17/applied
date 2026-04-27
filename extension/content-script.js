@@ -196,44 +196,21 @@
     },
     collectCandidateElements() {
       const set = new Set();
+      const candidates = queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select, [data-automation-id*="text"], [data-automation-id="promptInput"], [data-automation-id^="input_"]');
 
-      queryAll('input:not([type="hidden"]):not([type="file"])').forEach((el) => {
-        if (el instanceof HTMLInputElement && isVisible(el)) {
-          set.add(el);
+      candidates.forEach((el) => {
+        if (!(el instanceof HTMLElement) || !isVisible(el)) {
+          return;
         }
-      });
-      queryAll('textarea').forEach((el) => {
-        if (el instanceof HTMLTextAreaElement && isVisible(el)) {
+
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
           set.add(el);
+          return;
         }
-      });
-      queryAll('select').forEach((el) => {
-        if (el instanceof HTMLSelectElement && isVisible(el)) {
-          set.add(el);
-        }
-      });
-      
-      queryAll('[data-automation-id*="text"]').forEach((el) => {
-        if (el instanceof HTMLElement && isVisible(el)) {
-          const nested = findWorkdayInput(el);
-          if (nested instanceof HTMLInputElement || nested instanceof HTMLTextAreaElement || nested instanceof HTMLSelectElement) {
-            set.add(nested);
-          }
-        }
-      });
-      queryAll('[data-automation-id="promptInput"]').forEach((el) => {
-        if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) && isVisible(el)) {
-          set.add(el);
-        }
-      });
-      queryAll('[data-automation-id^="input_"]').forEach((el) => {
-        if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) && isVisible(el)) {
-          set.add(el);
-        }
-      });
-      queryAll('input[type="radio"]').forEach((el) => {
-        if (el instanceof HTMLInputElement && isVisible(el)) {
-          set.add(el);
+
+        const nested = findWorkdayInput(el);
+        if (nested) {
+          set.add(nested);
         }
       });
 
@@ -1240,16 +1217,17 @@
 
     const dataId = normalizeText(el.getAttribute("data-automation-id") || "");
     const role = normalizeText(el.getAttribute("role") || "");
+    const type = normalizeText(el.getAttribute("type") || "");
     
-    if (role === "combobox") {
+    if (role === "combobox" || role === "listbox") {
       return true;
     }
 
-    if (dataId === "promptinput" || dataId.startsWith("input_") || dataId.includes("dropdown")) {
+    if (dataId === "promptinput" || dataId.startsWith("input_") || dataId.includes("dropdown") || dataId.includes("select")) {
       return true;
     }
 
-    if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) && dataId.includes("text")) {
+    if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) && (dataId.includes("text") || type === "text" || type === "email" || type === "tel")) {
       return true;
     }
 
@@ -1259,18 +1237,12 @@
   function findWorkdayInput(el) {
     if (!el) return null;
     
-    if (el instanceof HTMLInputElement) return el;
-    if (el instanceof HTMLTextAreaElement) return el;
-    if (el instanceof HTMLSelectElement) return el;
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+      return el;
+    }
 
-    const input = el.querySelector('input:not([type="hidden"])');
+    const input = el.querySelector('input:not([type="hidden"]), textarea, select');
     if (input) return input;
-    
-    const textarea = el.querySelector('textarea');
-    if (textarea) return textarea;
-
-    const select = el.querySelector('select');
-    if (select) return select;
 
     return null;
   }
@@ -1636,26 +1608,34 @@
     }
 
     const fieldId = String(item.fieldId);
-    const parsed = parseFieldId(fieldId);
-    const meta = STATE.fieldRegistry.get(fieldId);
-
-    if (meta && meta.isFile) {
-      return false;
-    }
-
-    if (parsed.kind === "radio" || (meta && meta.type === "radio")) {
-      const groupName = parsed.kind === "radio" ? parsed.value : meta.name;
-      return fillRadioGroup(groupName, item.value);
-    }
-
     let element = findElementForField(fieldId);
+
     if (!element && allowRescan) {
       extractFields();
       element = findElementForField(fieldId);
+      
+      // If still not found by ID, try a more aggressive search using the metadata we have
+      if (!element) {
+        const meta = STATE.fieldRegistry.get(fieldId);
+        if (meta && meta.label) {
+          element = findFieldByLabel(meta.label);
+        }
+      }
     }
 
     if (!element) {
       return false;
+    }
+
+    const meta = STATE.fieldRegistry.get(fieldId);
+    if (meta && meta.isFile) {
+      return false;
+    }
+
+    const parsed = parseFieldId(fieldId);
+    if (parsed.kind === "radio" || (meta && meta.type === "radio")) {
+      const groupName = parsed.kind === "radio" ? parsed.value : meta.name;
+      return fillRadioGroup(groupName, item.value);
     }
 
     const fieldType = meta ? meta.type : fieldTypeForElement(element);
@@ -1716,8 +1696,8 @@
     overlay.innerHTML = [
       '<div class="jap-header">',
       '  <div class="jap-logo">',
-      '    <div class="jap-logo-icon">J</div>',
-      '    <span class="jap-logo-text">Job Autofill</span>',
+      '    <div class="jap-logo-icon">A</div>',
+      '    <span class="jap-logo-text">Applied</span>',
       '  </div>',
       '  <button id="jap-close" class="jap-icon-btn" title="Close">✕</button>',
       '</div>',
