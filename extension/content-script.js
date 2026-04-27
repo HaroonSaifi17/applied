@@ -1975,7 +1975,11 @@
       }
 
       const suggestedCount = STATE.lastSuggestions.filter((item) => item && item.suggested).length;
-      setStatus(`Found ${fields.length} fields (${suggestedCount} ready)`, "success");
+      if (suggestedCount === 0) {
+        setStatus(`Found ${fields.length} fields (0 suggestions ready)`, "error");
+      } else {
+        setStatus(`Found ${fields.length} fields (${suggestedCount} ready)`, "success");
+      }
       return true;
     } catch (e) {
       setStatus(`Error: ${e?.message || e}`, "error");

@@ -119,7 +119,7 @@ function sanitizeApplicationContext(context) {
   return normalized;
 }
 
-function sanitizeConfidenceThreshold(value, fallback = 0.7) {
+function sanitizeConfidenceThreshold(value, fallback = 0.6) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
     return fallback;

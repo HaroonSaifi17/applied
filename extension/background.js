@@ -68,7 +68,7 @@
   async function callProxy(endpoint, payload, method = "POST") {
     const cfg = await getConfig();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
     const requestInit = {
       method,
       headers: { "Content-Type": "application/json" },
@@ -83,12 +83,22 @@
       const res = await fetch(cfg.proxyBaseUrl + endpoint, requestInit);
       const text = await res.text();
       let data = null;
-      try { data = JSON.parse(text); } catch { data = { raw: text }; }
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { ok: false, error: `Invalid JSON response from proxy: ${text.slice(0, 100)}` };
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || `Proxy error ${res.status}`);
+      }
       return data;
     } catch (error) {
       if (error && error.name === "AbortError") {
         throw new Error("Proxy request timed out after 20s");
+      }
+      if (error && (error.message.includes("Failed to fetch") || error.message.includes("NetworkError"))) {
+        throw new Error(`Proxy not reachable at ${cfg.proxyBaseUrl}. Is the proxy server running?`);
       }
       throw error;
     } finally {
@@ -111,17 +121,12 @@
 
     const cfg = await getConfig();
 
-    let result;
-    try {
-      result = await callProxy("/v1/resolve-form", {
-        url: tab.url,
-        fields: scan.fields,
-        applicationContext: applicationContext || {},
-        confidenceThreshold: clamp(cfg.confidenceThreshold, 0.1, 1),
-      });
-    } catch (e) {
-      result = { suggestions: scan.fields.map((f) => ({ fieldId: f.id, value: null, confidence: 0 })) };
-    }
+    const result = await callProxy("/v1/resolve-form", {
+      url: tab.url,
+      fields: scan.fields,
+      applicationContext: applicationContext || {},
+      confidenceThreshold: clamp(cfg.confidenceThreshold, 0.1, 1),
+    });
 
     const session = {
       tabId: tab.id,
@@ -274,5 +279,8 @@ async function rememberAnswers(approvals) {
       if (tab?.id) ext.tabs.sendMessage(tab.id, { type: "showOverlay" }).catch(() => {});
     });
   }
+
+  
+  callProxy("/health", null, "GET").catch(() => {});
 
 })();
