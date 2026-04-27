@@ -57,7 +57,6 @@ const FACT_ALIASES = {
   weaknesses: ["weaknesses"],
   whyHireYou: ["why hire you", "why should we hire you"],
   hobbies: ["hobbies", "interests"],
-  coverLetterText: ["cover letter", "cover letter text"],
 };
 
 const FACT_KEYS = Object.keys(FACT_ALIASES);
@@ -336,7 +335,6 @@ function normalizeFacts(rawFacts) {
   next.lastName = next.lastName || nameParts.lastName;
   next.fullName = inferFullName(next.firstName, next.lastName, next.fullName);
 
-  next.coverLetterText = sanitizeLineValue(next.coverLetterText).slice(0, 7000);
   next.aboutYou = sanitizeLineValue(next.aboutYou).slice(0, 2000);
   next.projects = sanitizeLineValue(next.projects).slice(0, 3000);
   next.achievements = sanitizeLineValue(next.achievements).slice(0, 3000);
@@ -357,10 +355,6 @@ function extractFacts(documents) {
     if (document.type === "json") {
       const fromJson = parseJsonFacts(document.text);
       Object.assign(rawFacts, fromJson);
-    }
-
-    if (/cover[-_\s]?letter/i.test(document.source) && !rawFacts.coverLetterText) {
-      rawFacts.coverLetterText = String(document.text || "").slice(0, 7000);
     }
   }
 

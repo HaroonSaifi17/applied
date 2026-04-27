@@ -147,10 +147,6 @@ const FACT_MATCH_RULES = [
     key: "hobbies",
     keywords: ["hobbies", "interests"],
   },
-  {
-    key: "coverLetterText",
-    keywords: ["cover letter", "motivation", "why this role"],
-  },
 ];
 
 const BOOLEAN_FACT_KEYS = new Set([

@@ -161,10 +161,6 @@ async function rememberAnswers(approvals) {
     };
   }
 
-  async function getProfileFiles() {
-    return callProxy("/profile-files", null, "GET");
-  }
-
   async function checkApplication(fields, applicationContext, sender) {
     const tab = await resolveTabContext(sender);
     return callProxy("/check-application", {
@@ -247,12 +243,6 @@ async function rememberAnswers(approvals) {
 
     if (msg.type === "proxyHealth") {
       callProxy("/health", null, "GET").then((r) => sendResponse({ ok: true, payload: r }))
-        .catch((e) => sendResponse({ ok: false, error: e.message }));
-      return true;
-    }
-
-    if (msg.type === "getProfileFiles") {
-      getProfileFiles().then((r) => sendResponse({ ok: true, payload: r }))
         .catch((e) => sendResponse({ ok: false, error: e.message }));
       return true;
     }

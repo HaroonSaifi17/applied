@@ -8,7 +8,6 @@ const { ApplicationHistory } = require("./lib/application-history");
 const { resolveWithAi, createQuestionSummary } = require("./lib/ai-resolver");
 const { resolveDeterministic } = require("./lib/deterministic-resolver");
 const { GitHubModelsClient } = require("./lib/github-models-client");
-const { findProfileFilePath } = require("./lib/profile-files");
 const { ProfileStore } = require("./lib/profile-store");
 const {
   sanitizeUrl,
@@ -153,27 +152,8 @@ async function bootstrap() {
     }
   });
 
-  app.get("/profile-files", async (_request, response) => {
-    try {
-      const files = profileStore.getProfile().files || [];
-      const resumePath = findProfileFilePath(profileStore, "resume");
-      const coverPath = findProfileFilePath(profileStore, "coverLetter");
+  app.get("/health", async (_request, response) => {
 
-      response.json({
-        ok: true,
-        files: files.map((f) => f.source),
-        resume: resumePath,
-        coverLetter: coverPath,
-      });
-    } catch (error) {
-      response.status(500).json({
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  });
-
-  app.post("/check-application", async (request, response) => {
     try {
       const url = sanitizeUrl(request.body?.url);
       const fields = sanitizeFields(request.body?.fields || []);

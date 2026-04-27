@@ -63,29 +63,6 @@
 
       return Array.from(set);
     },
-    getFileInput(kind) {
-      const candidates = queryAll('input[type="file"]')
-        .filter((entry) => entry instanceof HTMLInputElement);
-
-      if (!candidates.length) {
-        return null;
-      }
-
-      const keywords = kind === "resume" ? ["resume", "cv"] : ["cover", "letter"];
-
-      let best = candidates[0];
-      let bestScore = scoreFileInput(candidates[0], keywords);
-
-      for (const candidate of candidates.slice(1)) {
-        const score = scoreFileInput(candidate, keywords);
-        if (score > bestScore) {
-          best = candidate;
-          bestScore = score;
-        }
-      }
-
-      return best;
-    },
   };
 
   const GREENHOUSE_ADAPTER = {
@@ -111,29 +88,6 @@
 
       return Array.from(set);
     },
-    getFileInput(kind) {
-      const candidates = queryAll('input[type="file"]')
-        .filter((entry) => entry instanceof HTMLInputElement);
-
-      if (!candidates.length) {
-        return null;
-      }
-
-      const keywords = kind === "resume" ? ["resume", "cv"] : ["cover", "letter"];
-
-      let best = candidates[0];
-      let bestScore = scoreFileInput(candidates[0], keywords);
-
-      for (const candidate of candidates.slice(1)) {
-        const score = scoreFileInput(candidate, keywords);
-        if (score > bestScore) {
-          best = candidate;
-          bestScore = score;
-        }
-      }
-
-      return best;
-    },
   };
 
   const ASHBY_ADAPTER = {
@@ -158,29 +112,6 @@
       queryAll('input[type="radio"]').forEach(add);
 
       return Array.from(set);
-    },
-    getFileInput(kind) {
-      const candidates = queryAll('input[type="file"]')
-        .filter((entry) => entry instanceof HTMLInputElement);
-
-      if (!candidates.length) {
-        return null;
-      }
-
-      const keywords = kind === "resume" ? ["resume", "cv"] : ["cover", "letter"];
-
-      let best = candidates[0];
-      let bestScore = scoreFileInput(candidates[0], keywords);
-
-      for (const candidate of candidates.slice(1)) {
-        const score = scoreFileInput(candidate, keywords);
-        if (score > bestScore) {
-          best = candidate;
-          bestScore = score;
-        }
-      }
-
-      return best;
     },
   };
 
@@ -215,29 +146,6 @@
       });
 
       return Array.from(set);
-    },
-    getFileInput(kind) {
-      const candidates = queryAll('input[type="file"]')
-        .filter((entry) => entry instanceof HTMLInputElement);
-
-      if (!candidates.length) {
-        return null;
-      }
-
-      const keywords = kind === "resume" ? ["resume", "cv"] : ["cover", "letter"];
-
-      let best = candidates[0];
-      let bestScore = scoreFileInput(candidates[0], keywords);
-
-      for (const candidate of candidates.slice(1)) {
-        const score = scoreFileInput(candidate, keywords);
-        if (score > bestScore) {
-          best = candidate;
-          bestScore = score;
-        }
-      }
-
-      return best;
     },
   };
 
@@ -644,57 +552,6 @@
     return context;
   }
 
-  function scoreFileInput(input, keywords) {
-    const key = normalizeText(`${input.id} ${input.name} ${getAssociatedLabel(input)}`);
-    let score = 0;
-
-    for (const keyword of keywords) {
-      if (key.includes(keyword)) {
-        score += 2;
-      }
-    }
-
-    if (isVisible(input)) {
-      score += 1;
-    }
-    if (input.classList.contains("visually-hidden")) {
-      score += 1;
-    }
-
-    return score;
-  }
-
-  function shouldIncludeFileInput(input) {
-    if (!(input instanceof HTMLInputElement)) {
-      return false;
-    }
-
-    if (isVisible(input)) {
-      return true;
-    }
-
-    if (input.classList.contains("visually-hidden")) {
-      return true;
-    }
-
-    if (getAssociatedLabel(input)) {
-      return true;
-    }
-
-    let parent = input.parentElement;
-    let depth = 0;
-
-    while (parent && depth < 4) {
-      if (normalizeText(parent.className).includes("file-upload")) {
-        return true;
-      }
-      parent = parent.parentElement;
-      depth += 1;
-    }
-
-    return false;
-  }
-
   function isCustomSelectElement(el) {
     if (!(el instanceof HTMLElement)) {
       return false;
@@ -958,21 +815,16 @@
     for (let index = 0; index < candidates.length; index += 1) {
       const el = candidates[index];
       const type = fieldTypeForElement(el);
-      const isFile = type === "file";
 
       if (el.disabled) {
         continue;
       }
 
-      if (!isFile && "readOnly" in el && el.readOnly) {
+      if ("readOnly" in el && el.readOnly) {
         continue;
       }
 
-      if (!isFile && !isVisible(el)) {
-        continue;
-      }
-
-      if (isFile && !shouldIncludeFileInput(el)) {
+      if (!isVisible(el)) {
         continue;
       }
 
@@ -986,18 +838,8 @@
         seenRadioGroups.add(name);
       }
 
-      let label = getFieldLabel(el);
+      const label = getFieldLabel(el);
       const placeholder = cleanText(el.getAttribute("placeholder"));
-      const labelKey = normalizeText(`${idAttr} ${name} ${label}`);
-      if (isFile) {
-        if (labelKey.includes("resume") || labelKey.includes("cv")) {
-          label = "Resume/CV";
-        } else if (labelKey.includes("cover")) {
-          label = "Cover Letter";
-        } else if (!label) {
-          label = "File Upload";
-        }
-      }
 
       const fieldId = createFieldId({ type, idAttr, name, label, placeholder }, el);
       if (seenIds.has(fieldId)) {
@@ -1024,7 +866,6 @@
         options,
         placeholder,
         description: getFieldDescription(el),
-        isFile,
       };
 
       fields.push(field);
@@ -1034,7 +875,6 @@
         name,
         label,
         type,
-        isFile,
       });
     }
 
@@ -1639,10 +1479,6 @@
     }
 
     const meta = STATE.fieldRegistry.get(fieldId);
-    if (meta && meta.isFile) {
-      return false;
-    }
-
     const parsed = parseFieldId(fieldId);
     if (parsed.kind === "radio" || (meta && meta.type === "radio")) {
       const groupName = parsed.kind === "radio" ? parsed.value : meta.name;

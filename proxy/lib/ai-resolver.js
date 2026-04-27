@@ -162,7 +162,6 @@ function compactFacts(facts) {
     weaknesses: truncate(facts.weaknesses || "", 700),
     whyHireYou: truncate(facts.whyHireYou || "", 700),
     hobbies: truncate(facts.hobbies || "", 500),
-    coverLetterText: truncate(facts.coverLetterText || "", 2200),
   };
 }
 
