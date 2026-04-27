@@ -215,6 +215,7 @@ function buildSystemMessage() {
     "Use candidate profile facts first. Use answer bank/context chunks as secondary support.",
     "If confidence is low or information is missing, return answer null with low confidence and a short reason.",
     "Never invent personal facts.",
+    "NEVER provide placeholder answers like 'Resume attached', 'See resume', or 'N/A'. If you cannot answer based on the profile, return answer: null.",
     "For select/radio fields, you MUST choose from the provided options only - do NOT add your own value.",
     "For checkbox fields, output booleans true/false.",
     "For numeric years fields, prefer plain numeric answers when known.",

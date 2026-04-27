@@ -511,21 +511,32 @@
   }
 
   function getLabelByContainer(el) {
+    
+    const parentLabel = el.closest("label");
+    if (parentLabel) {
+      const text = nodeText(parentLabel);
+      if (text) return text;
+    }
+
+    
+    let sibling = el.previousElementSibling;
+    while (sibling) {
+      if (sibling.tagName === "LABEL" || sibling.classList.contains("label")) {
+        const text = nodeText(sibling);
+        if (text) return text;
+      }
+      sibling = sibling.previousElementSibling;
+    }
+
+    
     let parent = el.parentElement;
     let depth = 0;
-
-    while (parent && depth < 6) {
-      const label =
-        parent.querySelector("label") ||
-        parent.querySelector(".label") ||
-        parent.querySelector("[class*='upload-label']") ||
-        parent.querySelector("[data-testid*='label']");
-
-      const text = nodeText(label);
-      if (text) {
-        return text;
+    while (parent && depth < 3) { 
+      const label = parent.querySelector(`label, .label, [data-testid*="label"]`);
+      if (label && (label.contains(el) || label.nextElementSibling === el || el.previousElementSibling === label)) {
+        const text = nodeText(label);
+        if (text) return text;
       }
-
       parent = parent.parentElement;
       depth += 1;
     }
