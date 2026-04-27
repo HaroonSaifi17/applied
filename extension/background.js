@@ -45,28 +45,59 @@
     return tabs[0] || null;
   }
 
+  async function resolveTabContext(sender) {
+    const senderTab = sender && sender.tab ? sender.tab : null;
+    if (senderTab && senderTab.id && senderTab.url) {
+      return {
+        id: senderTab.id,
+        url: senderTab.url,
+      };
+    }
+
+    const fallback = await getActiveTab();
+    if (!fallback || !fallback.id || !fallback.url) {
+      throw new Error("No tab");
+    }
+
+    return {
+      id: fallback.id,
+      url: fallback.url,
+    };
+  }
+
   async function callProxy(endpoint, payload, method = "POST") {
     const cfg = await getConfig();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
     const requestInit = {
       method,
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
     };
 
     if (method !== "GET") {
       requestInit.body = JSON.stringify(payload || {});
     }
 
-    const res = await fetch(cfg.proxyBaseUrl + endpoint, requestInit);
-    const text = await res.text();
-    let data = null;
-    try { data = JSON.parse(text); } catch { data = { raw: text }; }
-    if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
-    return data;
+    try {
+      const res = await fetch(cfg.proxyBaseUrl + endpoint, requestInit);
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      return data;
+    } catch (error) {
+      if (error && error.name === "AbortError") {
+        throw new Error("Proxy request timed out after 20s");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
-  async function resolveFields(preScannedFields) {
-    const tab = await getActiveTab();
-    if (!tab?.id) throw new Error("No tab");
+  async function resolveFields(preScannedFields, sender, applicationContext) {
+    const tab = await resolveTabContext(sender);
 
     let scan;
     if (Array.isArray(preScannedFields)) {
@@ -85,13 +116,19 @@
       result = await callProxy("/v1/resolve-form", {
         url: tab.url,
         fields: scan.fields,
+        applicationContext: applicationContext || {},
         confidenceThreshold: clamp(cfg.confidenceThreshold, 0.1, 1),
       });
     } catch (e) {
       result = { suggestions: scan.fields.map((f) => ({ fieldId: f.id, value: null, confidence: 0 })) };
     }
 
-    const session = { tabId: tab.id, fields: scan.fields, suggestions: result.suggestions || [] };
+    const session = {
+      tabId: tab.id,
+      fields: scan.fields,
+      applicationContext: applicationContext || {},
+      suggestions: result.suggestions || [],
+    };
     sessionStore.set(tab.id, session);
     return session;
   }
@@ -123,16 +160,26 @@ async function rememberAnswers(approvals) {
     return callProxy("/profile-files", null, "GET");
   }
 
-  async function checkApplication(fields) {
-    const tab = await getActiveTab();
-    if (!tab?.id) throw new Error("No tab");
-    return callProxy("/check-application", { url: tab.url, fields });
+  async function checkApplication(fields, applicationContext, sender) {
+    const tab = await resolveTabContext(sender);
+    return callProxy("/check-application", {
+      url: tab.url,
+      fields,
+      applicationContext: applicationContext || {},
+    });
   }
 
-  async function recordApplication(fields) {
-    const tab = await getActiveTab();
-    if (!tab?.id) throw new Error("No tab");
-    return callProxy("/record-application", { url: tab.url, fields });
+  async function recordApplication(fields, applicationContext, sender, sourceUrl) {
+    const tab = await resolveTabContext(sender);
+    const requestedUrl = String(sourceUrl || "").trim();
+    const payloadUrl = requestedUrl || tab.url;
+
+    return callProxy("/record-application", {
+      url: payloadUrl,
+      sourceUrl: tab.url,
+      fields,
+      applicationContext: applicationContext || {},
+    });
   }
 
   async function applyAll() {
@@ -159,7 +206,7 @@ async function rememberAnswers(approvals) {
   // Message handler
   ext.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "scanAndResolve") {
-      resolveFields(msg.fields).then((s) => sendResponse({ ok: true, session: s }))
+      resolveFields(msg.fields, sender, msg.applicationContext).then((s) => sendResponse({ ok: true, session: s }))
         .catch((e) => sendResponse({ ok: false, error: e.message }));
       return true;
     }
@@ -206,13 +253,13 @@ async function rememberAnswers(approvals) {
     }
 
     if (msg.type === "checkApplication") {
-      checkApplication(msg.fields).then((r) => sendResponse({ ok: true, payload: r }))
+      checkApplication(msg.fields, msg.applicationContext, sender).then((r) => sendResponse({ ok: true, payload: r }))
         .catch((e) => sendResponse({ ok: false, error: e.message }));
       return true;
     }
 
     if (msg.type === "recordApplication") {
-      recordApplication(msg.fields).then((r) => sendResponse({ ok: true, payload: r }))
+      recordApplication(msg.fields, msg.applicationContext, sender, msg.url).then((r) => sendResponse({ ok: true, payload: r }))
         .catch((e) => sendResponse({ ok: false, error: e.message }));
       return true;
     }

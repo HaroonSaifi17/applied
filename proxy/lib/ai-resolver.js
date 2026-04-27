@@ -169,10 +169,30 @@ function compactFacts(facts) {
 function buildPromptContext(profile, unresolvedFields, context, runtimeContext) {
   const facts = profile.facts || {};
 
+  const formUrl = runtimeContext && runtimeContext.url ? runtimeContext.url : "";
+  const host = (() => {
+    if (!formUrl) {
+      return "unknown";
+    }
+    try {
+      return new URL(formUrl).hostname;
+    } catch {
+      return "unknown";
+    }
+  })();
+
   return {
     target: {
-      site: "greenhouse",
-      formUrl: runtimeContext && runtimeContext.url ? runtimeContext.url : "",
+      site: host,
+      formUrl,
+      jobTitle:
+        runtimeContext && (runtimeContext.title || runtimeContext.jobTitle)
+          ? String(runtimeContext.title || runtimeContext.jobTitle)
+          : "",
+      company:
+        runtimeContext && (runtimeContext.company || runtimeContext.employer)
+          ? String(runtimeContext.company || runtimeContext.employer)
+          : "",
     },
     candidateProfile: compactFacts(facts),
     unresolvedFields: unresolvedFields.map(toAiField),

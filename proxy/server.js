@@ -1,29 +1,31 @@
 "use strict";
 
-const fs = require("fs/promises");
-const path = require("path");
-const crypto = require("crypto");
-
 const dotenv = require("dotenv");
 const express = require("express");
 
 const { AnswerMemory } = require("./lib/answer-memory");
-const { ApplicationHistory, extractJobInfo } = require("./lib/application-history");
+const { ApplicationHistory } = require("./lib/application-history");
 const { resolveWithAi, createQuestionSummary } = require("./lib/ai-resolver");
 const { resolveDeterministic } = require("./lib/deterministic-resolver");
 const { GitHubModelsClient } = require("./lib/github-models-client");
+const { findProfileFilePath } = require("./lib/profile-files");
 const { ProfileStore } = require("./lib/profile-store");
 const {
+  sanitizeUrl,
+  sanitizeFields,
+  sanitizeApplicationContext,
+  sanitizeConfidenceThreshold,
+} = require("./lib/request-sanitizers");
+const { makeCacheKey, trimCache } = require("./lib/resolve-cache");
+const { mergeSuggestions } = require("./lib/suggestion-merge");
+const {
   getRelevantContext,
-  normalizeFieldFingerprint,
 } = require("./lib/retrieval");
 
 dotenv.config();
 
 const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || 8787);
-const PROFILE_DIR = path.resolve(__dirname, "..", "..", "profile-data");
-
 if (HOST !== "127.0.0.1" && HOST !== "localhost") {
   throw new Error("For safety, HOST must be 127.0.0.1 or localhost.");
 }
@@ -32,170 +34,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function sanitizeIncomingField(field, index) {
-  const normalized = {
-    id: String(field.id || field.name || `field_${index}`),
-    name: String(field.name || "").trim(),
-    label: String(field.label || "").trim(),
-    placeholder: String(field.placeholder || "").trim(),
-    description: String(field.description || "").trim(),
-    type: String(field.type || "text")
-      .trim()
-      .toLowerCase(),
-    required: !!field.required,
-    options: Array.isArray(field.options)
-      ? field.options
-          .map((option) => {
-            if (option && typeof option === "object") {
-              return {
-                label: String(option.label || option.value || "").trim(),
-                value: String(option.value || option.label || "").trim(),
-              };
-            }
-            const value = String(option || "").trim();
-            return {
-              label: value,
-              value,
-            };
-          })
-          .filter((option) => option.label || option.value)
-      : [],
-  };
-
-  normalized.fingerprint = normalizeFieldFingerprint(normalized);
-  return normalized;
-}
-
-function sanitizeFields(fields) {
-  if (!Array.isArray(fields)) {
-    return [];
-  }
-
-  const seenIds = new Set();
-  const sanitized = [];
-
-  for (let i = 0; i < fields.length; i += 1) {
-    const candidate = fields[i] || {};
-    const field = sanitizeIncomingField(candidate, i);
-    if (!field.id || seenIds.has(field.id)) {
-      continue;
-    }
-
-    seenIds.add(field.id);
-    sanitized.push(field);
-  }
-
-  return sanitized;
-}
-
-function fingerprintPayload(url, fields) {
-  const payload = JSON.stringify({
-    url: String(url || ""),
-    fields: fields.map((field) => ({
-      id: field.id,
-      name: field.name,
-      label: field.label,
-      type: field.type,
-      options: field.options,
-    })),
-  });
-
-  return crypto.createHash("sha256").update(payload).digest("hex");
-}
-
-function normalizeSuggestionMap(items) {
-  const map = new Map();
-
-  for (const item of items) {
-    if (!item || !item.fieldId) {
-      continue;
-    }
-
-    map.set(item.fieldId, item);
-  }
-
-  return map;
-}
-
-function findProfileFilePath(kind) {
-  const profile = profileStore.getProfile();
-  const files = profile.files || [];
-
-  if (kind === "resume") {
-    const resumeFiles = files.filter((f) => {
-      const name = f.source || "";
-      return /resume|cv/i.test(name);
-    });
-    if (resumeFiles.length) {
-      return path.join(PROFILE_DIR, resumeFiles[0].source);
-    }
-  }
-
-  if (kind === "coverLetter") {
-    const coverFiles = files.filter((f) => {
-      const name = f.source || "";
-      return /cover[-_]?letter/i.test(name);
-    });
-    if (coverFiles.length) {
-      return path.join(PROFILE_DIR, coverFiles[0].source);
-    }
-  }
-
-  return null;
-}
-
-function mergeSuggestions(fields, deterministic, ai, threshold) {
-  const combined = [];
-  const deterministicMap = normalizeSuggestionMap(deterministic);
-  const aiMap = normalizeSuggestionMap(ai);
-
-  for (const field of fields) {
-    const deterministicItem = deterministicMap.get(field.id);
-    const aiItem = aiMap.get(field.id);
-
-    if (deterministicItem) {
-      combined.push({
-        fieldId: field.id,
-        fingerprint: field.fingerprint,
-        source: deterministicItem.source,
-        value: deterministicItem.value,
-        confidence: deterministicItem.confidence,
-        reason: deterministicItem.reason,
-        suggested: deterministicItem.confidence >= threshold,
-      });
-      continue;
-    }
-
-    if (aiItem) {
-      combined.push({
-        fieldId: field.id,
-        fingerprint: field.fingerprint,
-        source: aiItem.source,
-        value: aiItem.value,
-        confidence: aiItem.confidence,
-        reason: aiItem.reason,
-        suggested: aiItem.confidence >= threshold,
-      });
-      continue;
-    }
-
-    combined.push({
-      fieldId: field.id,
-      fingerprint: field.fingerprint,
-      source: "none",
-      value: null,
-      confidence: 0,
-      reason: "No suggestion available.",
-      suggested: false,
-    });
-  }
-
-  return combined;
-}
-
 async function bootstrap() {
   const app = express();
   app.use(express.json({ limit: "1mb" }));
+  const startedAt = nowIso();
 
   const answerMemory = new AnswerMemory();
   await answerMemory.load();
@@ -206,9 +48,7 @@ async function bootstrap() {
   const profileStore = new ProfileStore();
   await profileStore.reload();
 
-  const modelsClient = new GitHubModelsClient({
-    token: process.env.GITHUB_TOKEN,
-  });
+  let modelsClient = null;
 
   let modelStatus = {
     preferred: ["openai/gpt-5-mini", "openai/gpt-4.1", "openai/gpt-4o"],
@@ -216,31 +56,44 @@ async function bootstrap() {
     checkedAt: null,
   };
 
-  try {
-    const check = await modelsClient.checkAvailableModels();
-    modelsClient.models = check.preferred;
+  const token = String(process.env.GITHUB_TOKEN || "").trim();
+  if (!token) {
     modelStatus = {
-      preferred: check.preferred,
-      catalogSize: check.catalogSize,
+      ...modelStatus,
       checkedAt: nowIso(),
+      warning: "GITHUB_TOKEN missing; AI model resolution disabled.",
     };
-  } catch (error) {
-    modelStatus = {
-      preferred: modelsClient.models,
-      catalogSize: null,
-      checkedAt: nowIso(),
-      warning: error instanceof Error ? error.message : String(error),
-    };
+  } else {
+    modelsClient = new GitHubModelsClient({ token });
+
+    try {
+      const check = await modelsClient.checkAvailableModels();
+      modelsClient.models = check.preferred;
+      modelStatus = {
+        preferred: check.preferred,
+        catalogSize: check.catalogSize,
+        checkedAt: nowIso(),
+      };
+    } catch (error) {
+      modelStatus = {
+        preferred: modelsClient.models,
+        catalogSize: null,
+        checkedAt: nowIso(),
+        warning: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   const responseCache = new Map();
+  const CACHE_TTL_MS = 1000 * 60 * 15;
+  const CACHE_MAX_SIZE = 200;
 
   app.get("/health", (_request, response) => {
     const profile = profileStore.getProfile();
     response.json({
       ok: true,
       service: "autofill-job-proxy",
-      startedAt: nowIso(),
+      startedAt,
       host: HOST,
       port: PORT,
       models: modelStatus,
@@ -303,8 +156,8 @@ async function bootstrap() {
   app.get("/profile-files", async (_request, response) => {
     try {
       const files = profileStore.getProfile().files || [];
-      const resumePath = findProfileFilePath("resume");
-      const coverPath = findProfileFilePath("coverLetter");
+      const resumePath = findProfileFilePath(profileStore, "resume");
+      const coverPath = findProfileFilePath(profileStore, "coverLetter");
 
       response.json({
         ok: true,
@@ -322,8 +175,9 @@ async function bootstrap() {
 
   app.post("/check-application", async (request, response) => {
     try {
-      const url = String(request.body?.url || "").trim();
+      const url = sanitizeUrl(request.body?.url);
       const fields = sanitizeFields(request.body?.fields || []);
+      const context = sanitizeApplicationContext(request.body?.applicationContext);
 
       if (!url) {
         response.status(400).json({
@@ -333,7 +187,7 @@ async function bootstrap() {
         return;
       }
 
-      const existing = applicationHistory.getApplication(url, fields);
+      const existing = applicationHistory.getApplication(url, fields, context);
       response.json({
         ok: true,
         alreadyApplied: !!existing,
@@ -349,8 +203,10 @@ async function bootstrap() {
 
   app.post("/record-application", async (request, response) => {
     try {
-      const url = String(request.body?.url || "").trim();
+      const requestUrl = sanitizeUrl(request.body?.url);
+      const url = requestUrl || sanitizeUrl(request.body?.sourceUrl);
       const fields = sanitizeFields(request.body?.fields || []);
+      const context = sanitizeApplicationContext(request.body?.applicationContext);
 
       if (!url) {
         response.status(400).json({
@@ -360,7 +216,7 @@ async function bootstrap() {
         return;
       }
 
-      await applicationHistory.recordApplication(url, fields);
+      await applicationHistory.recordApplication(url, fields, context);
       response.json({
         ok: true,
         recorded: true,
@@ -392,8 +248,9 @@ async function bootstrap() {
     const startedAt = Date.now();
     const body = request.body || {};
 
-    const url = String(body.url || "").trim();
+    const url = sanitizeUrl(body.url);
     const fields = sanitizeFields(body.fields);
+    const context = sanitizeApplicationContext(body.applicationContext);
 
     if (!url) {
       response.status(400).json({
@@ -411,14 +268,19 @@ async function bootstrap() {
       return;
     }
 
-    const confidenceThreshold =
-      typeof body.confidenceThreshold === "number"
-        ? Math.max(0, Math.min(1, body.confidenceThreshold))
-        : 0.7;
+    const confidenceThreshold = sanitizeConfidenceThreshold(body.confidenceThreshold);
 
-    const cacheKey = fingerprintPayload(url, fields);
+    const profile = profileStore.getProfile();
+
+    const cacheKey = makeCacheKey(
+      url,
+      fields,
+      context,
+      confidenceThreshold,
+      profile.loadedAt,
+    );
     const cached = responseCache.get(cacheKey);
-    if (cached && Date.now() - cached.cachedAt < 1000 * 60 * 15) {
+    if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
       response.json({
         ...cached.payload,
         cached: true,
@@ -427,8 +289,6 @@ async function bootstrap() {
     }
 
     try {
-      const profile = profileStore.getProfile();
-
       const deterministic = resolveDeterministic(
         fields,
         profile.facts,
@@ -443,18 +303,20 @@ async function bootstrap() {
       };
       let aiWarning = null;
 
-        if (deterministic.unresolved.length) {
-          try {
-            aiResult = await resolveWithAi(
-              modelsClient,
-              profile,
-              deterministic.unresolved,
-              retrieval,
-              { url },
-            );
-          } catch (error) {
-            aiWarning = error instanceof Error ? error.message : String(error);
-          }
+      if (!modelsClient) {
+        aiWarning = "AI resolver unavailable: GITHUB_TOKEN missing.";
+      } else if (deterministic.unresolved.length) {
+        try {
+          aiResult = await resolveWithAi(
+            modelsClient,
+            profile,
+            deterministic.unresolved,
+            retrieval,
+            { url, ...context },
+          );
+        } catch (error) {
+          aiWarning = error instanceof Error ? error.message : String(error);
+        }
       }
 
       const suggestions = mergeSuggestions(
@@ -499,6 +361,7 @@ async function bootstrap() {
         cachedAt: Date.now(),
         payload,
       });
+      trimCache(responseCache, CACHE_MAX_SIZE);
 
       response.json(payload);
     } catch (error) {

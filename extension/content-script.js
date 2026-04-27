@@ -14,13 +14,37 @@
     lastFields: [],
     lastSuggestions: [],
     alreadyApplied: null,
+    lastScanUrl: "",
+    bypassDuplicateCheckOnce: false,
+    isBusy: false,
+    pendingRecord: null,
+    recordingInFlight: false,
+    recordHooksAttached: false,
+  };
+
+  const APPLICATION_CONTEXT_HINTS = {
+    titleSelectors: [
+      "meta[property='og:title']",
+      "meta[name='twitter:title']",
+      "h1",
+      "[data-qa='job-title']",
+      "[data-automation-id='jobPostingHeader']",
+      "[class*='job-title']",
+      "[class*='posting-title']",
+    ],
+    companySelectors: [
+      "meta[property='og:site_name']",
+      "[data-qa='company-name']",
+      "[class*='company']",
+      "[class*='employer']",
+    ],
   };
 
   const LEVER_ADAPTER = {
     id: "lever",
     matches(hostname) {
       const value = normalizeText(hostname);
-      return value.includes("lever.co") || value.includes("lever");
+      return hostIs(value, "lever.co");
     },
     collectCandidateElements() {
       const set = new Set();
@@ -68,7 +92,7 @@
     id: "greenhouse",
     matches(hostname) {
       const value = normalizeText(hostname);
-      return value.includes("greenhouse.io") || value.includes("boards.greenhouse.io");
+      return hostIs(value, "greenhouse.io");
     },
     collectCandidateElements() {
       const set = new Set();
@@ -116,7 +140,7 @@
     id: "ashby",
     matches(hostname) {
       const value = normalizeText(hostname);
-      return value.includes("ashbyhq.com") || value.includes("jobs.ashbyhq");
+      return hostIs(value, "ashbyhq.com");
     },
     collectCandidateElements() {
       const set = new Set();
@@ -164,7 +188,11 @@
     id: "workday",
     matches(hostname) {
       const value = normalizeText(hostname);
-      return value.includes("myworkday.com") || value.includes("myworkdayjobs") || value.includes("workday.com");
+      return (
+        hostIs(value, "myworkday.com") ||
+        hostIs(value, "myworkdayjobs.com") ||
+        hostIs(value, "workday.com")
+      );
     },
     collectCandidateElements() {
       const set = new Set();
@@ -188,16 +216,18 @@
       queryAll('[data-automation-id*="text"]').forEach((el) => {
         if (el instanceof HTMLElement && isVisible(el)) {
           const nested = findWorkdayInput(el);
-          if (nested) set.add(nested);
+          if (nested instanceof HTMLInputElement || nested instanceof HTMLTextAreaElement || nested instanceof HTMLSelectElement) {
+            set.add(nested);
+          }
         }
       });
       queryAll('[data-automation-id="promptInput"]').forEach((el) => {
-        if (el instanceof HTMLElement && isVisible(el)) {
+        if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) && isVisible(el)) {
           set.add(el);
         }
       });
-      queryAll('[data-automation-id="input_"]').forEach((el) => {
-        if (el instanceof HTMLElement && isVisible(el)) {
+      queryAll('[data-automation-id^="input_"]').forEach((el) => {
+        if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) && isVisible(el)) {
           set.add(el);
         }
       });
@@ -251,6 +281,14 @@
       .trim();
   }
 
+  function normalizedHostname() {
+    return normalizeText(String(window.location.hostname || "").replace(/^www\./, ""));
+  }
+
+  function hostIs(hostname, suffix) {
+    return hostname === suffix || hostname.endsWith(`.${suffix}`);
+  }
+
   function cleanText(value) {
     return String(value || "")
       .replace(/\*/g, "")
@@ -258,12 +296,11 @@
       .trim();
   }
 
-  function clamp(value, min, max) {
-    const numeric = Number(value);
-    if (Number.isNaN(numeric)) {
-      return min;
-    }
-    return Math.max(min, Math.min(max, numeric));
+  function normalizeContextText(value) {
+    return cleanText(value)
+      .replace(/\s*[\|\-\u2013\u2014]\s*.*$/, "")
+      .replace(/^apply\s+(for\s+)?/i, "")
+      .trim();
   }
 
   function cssEscape(value) {
@@ -294,6 +331,110 @@
     }
 
     return null;
+  }
+
+  function hasMeaningfulValue(value) {
+    if (typeof value === "boolean") {
+      return true;
+    }
+    if (typeof value === "number") {
+      return Number.isFinite(value);
+    }
+    if (value === null || typeof value === "undefined") {
+      return false;
+    }
+    return String(value).trim().length > 0;
+  }
+
+  function tokenSet(value) {
+    const normalized = normalizeText(value);
+    if (!normalized) {
+      return new Set();
+    }
+
+    return new Set(normalized.split(" ").filter(Boolean));
+  }
+
+  function labelsEquivalent(left, right) {
+    const leftText = normalizeText(left);
+    const rightText = normalizeText(right);
+
+    if (!leftText || !rightText) {
+      return false;
+    }
+
+    if (leftText === rightText) {
+      return true;
+    }
+
+    if (
+      leftText.length >= 10 &&
+      rightText.length >= 10 &&
+      (leftText.includes(rightText) || rightText.includes(leftText))
+    ) {
+      return true;
+    }
+
+    const leftTokens = tokenSet(leftText);
+    const rightTokens = tokenSet(rightText);
+    if (!leftTokens.size || !rightTokens.size) {
+      return false;
+    }
+
+    let overlap = 0;
+    for (const token of leftTokens) {
+      if (rightTokens.has(token)) {
+        overlap += 1;
+      }
+    }
+
+    return overlap / Math.max(leftTokens.size, rightTokens.size) >= 0.75;
+  }
+
+  function compactIdSegment(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 80);
+  }
+
+  function elementContextSignature(el) {
+    if (!(el instanceof HTMLElement)) {
+      return "";
+    }
+
+    const parts = [];
+    let node = el;
+    let depth = 0;
+
+    while (node && depth < 4) {
+      const tag = String(node.tagName || "").toLowerCase();
+      if (!tag) {
+        break;
+      }
+
+      const idPart = compactIdSegment(node.id || "");
+      const namePart = compactIdSegment(node.getAttribute("name") || "");
+      const testIdPart = compactIdSegment(node.getAttribute("data-testid") || "");
+      const classPart = compactIdSegment(
+        String(node.className || "")
+          .split(/\s+/)
+          .slice(0, 2)
+          .join("_"),
+      );
+
+      parts.push([tag, idPart, namePart, testIdPart, classPart].filter(Boolean).join("-"));
+
+      if (tag === "form" || idPart) {
+        break;
+      }
+
+      node = node.parentElement;
+      depth += 1;
+    }
+
+    return parts.join("__");
   }
 
   function isVisible(el) {
@@ -457,6 +598,64 @@
     return getLabelByFor(input) || getLabelByContainer(input);
   }
 
+  function extractTextFromSelector(selector) {
+    const node = query(selector);
+    if (!node) {
+      return "";
+    }
+
+    if (node instanceof HTMLMetaElement) {
+      return cleanText(node.getAttribute("content"));
+    }
+
+    return nodeText(node);
+  }
+
+  function firstNonEmptyText(selectors) {
+    for (const selector of selectors) {
+      const text = normalizeContextText(extractTextFromSelector(selector));
+      if (text) {
+        return text;
+      }
+    }
+    return "";
+  }
+
+  function inferCompanyFromHost() {
+    const host = normalizedHostname();
+    if (!host) {
+      return "";
+    }
+
+    if (host.endsWith(".greenhouse.io")) {
+      return host.replace(/\.greenhouse\.io$/, "").replace(/^boards\./, "");
+    }
+    if (host.endsWith(".lever.co")) {
+      return host.replace(/\.lever\.co$/, "").replace(/^jobs\./, "");
+    }
+    if (host.endsWith(".ashbyhq.com")) {
+      return host.replace(/\.ashbyhq\.com$/, "").replace(/^jobs\./, "");
+    }
+
+    return "";
+  }
+
+  function buildApplicationContext() {
+    const title = firstNonEmptyText(APPLICATION_CONTEXT_HINTS.titleSelectors);
+    const company =
+      firstNonEmptyText(APPLICATION_CONTEXT_HINTS.companySelectors) ||
+      normalizeContextText(inferCompanyFromHost());
+
+    const context = {};
+    if (title) {
+      context.title = title;
+    }
+    if (company) {
+      context.company = company;
+    }
+    return context;
+  }
+
   function scoreFileInput(input, keywords) {
     const key = normalizeText(`${input.id} ${input.name} ${getAssociatedLabel(input)}`);
     let score = 0;
@@ -529,45 +728,12 @@
       return true;
     }
 
-    if (isWorkdayInput(el)) {
-      return true;
-    }
-
     const parent = el.closest('[class*="select"], [role="combobox"]');
     if (parent) {
       return true;
     }
 
     return false;
-  }
-
-  function collectFormElements() {
-    const set = new Set();
-
-    const add = (el) => {
-      const normalized = normalizeCandidateElement(el);
-      if (normalized) {
-        set.add(normalized);
-      }
-    };
-
-    queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select').forEach(add);
-    queryAll('[role="combobox"]').forEach(add);
-    queryAll('.react-select, .select__control').forEach(add);
-
-    return Array.from(set);
-  }
-
-  function collectRadioButtons() {
-    const set = new Set();
-    
-    queryAll('input[type="radio"]').forEach((el) => {
-      if (el instanceof HTMLInputElement) {
-        set.add(el);
-      }
-    });
-
-    return Array.from(set);
   }
 
   function fieldTypeForElement(el) {
@@ -595,7 +761,10 @@
     }
 
     if (isWorkdayInput(el)) {
-      return "select";
+      const role = normalizeText(el.getAttribute("role"));
+      if (role === "combobox") {
+        return "select";
+      }
     }
 
     return "text";
@@ -728,7 +897,10 @@
       }
       
       if (label) {
-        options.push({ label, value: parseInt(value, 10) });
+        const numeric = /^-?\d+$/.test(String(value || "").trim())
+          ? parseInt(String(value).trim(), 10)
+          : String(value || "").trim();
+        options.push({ label, value: numeric });
       }
     });
 
@@ -737,8 +909,8 @@
       if (hiddenInput) {
         const initialValue = hiddenInput.defaultValue;
         if (initialValue) {
-          options.push({ label: "Yes", value: 1 });
-          options.push({ label: "No", value: 0 });
+          options.push({ label: "Yes", value: "1" });
+          options.push({ label: "No", value: "0" });
         }
       }
     }
@@ -746,7 +918,7 @@
     return options;
   }
 
-  function createFieldId(meta, index) {
+  function createFieldId(meta, el) {
     if (meta.type === "radio" && meta.name) {
       return `radio:${meta.name}`;
     }
@@ -756,7 +928,21 @@
     if (meta.name) {
       return `name:${meta.name}`;
     }
-    return `field:${index}`;
+
+    const anonymousSignature = compactIdSegment(
+      [
+        meta.type,
+        meta.label,
+        meta.placeholder,
+        elementContextSignature(el),
+      ].join("::"),
+    );
+
+    if (anonymousSignature) {
+      return `anon:${anonymousSignature}`;
+    }
+
+    return `anon:${String(el && el.tagName ? el.tagName : "field").toLowerCase()}`;
   }
 
   function getActiveAdapter() {
@@ -812,13 +998,8 @@
         seenRadioGroups.add(name);
       }
 
-      const fieldId = createFieldId({ type, idAttr, name }, index);
-      if (seenIds.has(fieldId)) {
-        continue;
-      }
-      seenIds.add(fieldId);
-
       let label = getFieldLabel(el);
+      const placeholder = cleanText(el.getAttribute("placeholder"));
       const labelKey = normalizeText(`${idAttr} ${name} ${label}`);
       if (isFile) {
         if (labelKey.includes("resume") || labelKey.includes("cv")) {
@@ -829,6 +1010,12 @@
           label = "File Upload";
         }
       }
+
+      const fieldId = createFieldId({ type, idAttr, name, label, placeholder }, el);
+      if (seenIds.has(fieldId)) {
+        continue;
+      }
+      seenIds.add(fieldId);
 
       const options = type === "select" && el instanceof HTMLSelectElement
         ? extractSelectOptions(el)
@@ -847,7 +1034,7 @@
         type,
         required: Boolean(el.required || el.getAttribute("aria-required") === "true"),
         options,
-        placeholder: cleanText(el.getAttribute("placeholder")),
+        placeholder,
         description: getFieldDescription(el),
         isFile,
       };
@@ -900,7 +1087,7 @@
         continue;
       }
 
-      if (!text.includes(target) && !target.includes(text)) {
+      if (!labelsEquivalent(text, target)) {
         continue;
       }
 
@@ -1000,11 +1187,6 @@
     el.dispatchEvent(new Event("blur", { bubbles: true, cancelable: true }));
   }
 
-  function dispatchFocusAndBlurEvents(el) {
-    el.dispatchEvent(new FocusEvent("focus", { bubbles: true, cancelable: true }));
-    el.dispatchEvent(new FocusEvent("blur", { bubbles: true, cancelable: true }));
-  }
-
   function syncNativeInputValue(el, value) {
     try {
       const nativeInputValueSetter = Object.getOwnPropertyDescriptor(el instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype, "value")?.set;
@@ -1047,10 +1229,6 @@
     return false;
   }
 
-  function findAshbySelectContainer(el) {
-    return findGreenhouseSelectContainer(el);
-  }
-
   function isAshbySelect(el) {
     return isAshbyOrGreenhouseSelect(el);
   }
@@ -1060,16 +1238,19 @@
       return false;
     }
 
-    const dataId = el.getAttribute("data-automation-id") || "";
-    const className = el.className || "";
+    const dataId = normalizeText(el.getAttribute("data-automation-id") || "");
+    const role = normalizeText(el.getAttribute("role") || "");
     
-    if (dataId.includes("text") || dataId.includes("promptInput") || dataId.includes("input_")) {
+    if (role === "combobox") {
       return true;
     }
 
-    if (className.includes("input")) {
-      const parent = el.closest('[data-automation-id]');
-      if (parent) return true;
+    if (dataId === "promptinput" || dataId.startsWith("input_") || dataId.includes("dropdown")) {
+      return true;
+    }
+
+    if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) && dataId.includes("text")) {
+      return true;
     }
 
     return false;
@@ -1091,31 +1272,7 @@
     const select = el.querySelector('select');
     if (select) return select;
 
-    return el;
-  }
-
-  function findWorkdayDropdownOptions(el) {
-    const options = [];
-    
-    const promptOptions = document.querySelectorAll('[data-automation-id="promptOption"]');
-    promptOptions.forEach((option) => {
-      const label = cleanText(option.textContent || option.getAttribute("data-automation-label") || "");
-      const value = option.getAttribute("data-option-value") || option.getAttribute("data-value") || label;
-      if (label) {
-        options.push({ label, value });
-      }
-    });
-
-    const roleOptions = document.querySelectorAll('[role="option"]');
-    roleOptions.forEach((option) => {
-      const label = cleanText(option.textContent || "");
-      const value = option.getAttribute("data-value") || label;
-      if (label) {
-        options.push({ label, value });
-      }
-    });
-
-    return options;
+    return null;
   }
 
   function fillWorkdaySelect(el, value) {
@@ -1229,22 +1386,6 @@
     return true;
   }
 
-  function findReactSelectControl(el) {
-    let current = el;
-    let depth = 0;
-    
-    while (current && depth < 10) {
-      const className = normalizeText(current.className || "");
-      if (className.includes("react-select") || className.includes("select__control")) {
-        return current;
-      }
-      current = current.parentElement;
-      depth += 1;
-    }
-    
-    return null;
-  }
-
   function fillSelect(selectElement, value) {
     if (!(selectElement instanceof HTMLSelectElement)) {
       return false;
@@ -1314,33 +1455,6 @@
       }
       current = current.parentElement;
       depth += 1;
-    }
-    
-    return null;
-  }
-
-  function findReactSelectDropdown(control) {
-    if (!control) {
-      return null;
-    }
-    
-    const menu = control.querySelector('[class*="menu"], [class*="-dropdown"], [class*="__menu"]');
-    return menu;
-  }
-
-  function findReactSelectOption(dropdown, value) {
-    if (!dropdown) {
-      return null;
-    }
-
-    const target = normalizeText(value);
-    const options = dropdown.querySelectorAll('[class*="option"], [class*="item"], div[role="option"]');
-    
-    for (const option of options) {
-      const label = normalizeText(option.textContent || "");
-      if (label.includes(target) || target.includes(label) || label === target) {
-        return option;
-      }
     }
     
     return null;
@@ -1587,22 +1701,6 @@
     return { appliedCount, skippedCount };
   }
 
-  let profileFileHints = { resume: null, coverLetter: null };
-
-  async function loadProfileFileHints() {
-    try {
-      const response = await ext.runtime.sendMessage({ type: "getProfileFiles" });
-      if (response && response.ok && response.payload) {
-        profileFileHints = {
-          resume: response.payload.resume,
-          coverLetter: response.payload.coverLetter,
-        };
-      }
-    } catch {
-      profileFileHints = { resume: null, coverLetter: null };
-    }
-  }
-
   function showOverlay() {
     if (!getActiveAdapter()) {
       return null;
@@ -1623,16 +1721,46 @@
       "</div>",
       '<div id="jap-warning" class="jap-warning hidden">',
       '  <span id="jap-warning-text"></span>',
+      '  <span id="jap-warning-meta" class="jap-warning-meta"></span>',
       '  <button id="jap-force-apply" class="jap-btn jap-btn-warning">Apply Anyway</button>',
       "</div>",
     ].join("\n");
     document.body.appendChild(overlay);
-    query("#jap-fill", overlay).onclick = () => runScan().then(() => runApply());
+    query("#jap-fill", overlay).onclick = async () => {
+      if (STATE.isBusy) {
+        setStatus("Busy...");
+        return;
+      }
+
+      STATE.isBusy = true;
+      try {
+        const scanned = await runScan();
+        if (scanned) {
+          await runApply();
+        }
+      } finally {
+        STATE.isBusy = false;
+      }
+    };
     query("#jap-close", overlay).onclick = () => overlay.classList.add("hidden");
-    query("#jap-force-apply", overlay).onclick = () => {
+    query("#jap-force-apply", overlay).onclick = async () => {
+      if (STATE.isBusy) {
+        setStatus("Busy...");
+        return;
+      }
+
+      STATE.isBusy = true;
       STATE.alreadyApplied = null;
+      STATE.bypassDuplicateCheckOnce = true;
       hideDuplicateWarning();
-      runScan().then(() => runApply());
+      try {
+        const scanned = await runScan();
+        if (scanned) {
+          await runApply();
+        }
+      } finally {
+        STATE.isBusy = false;
+      }
     };
     return overlay;
   }
@@ -1640,17 +1768,27 @@
   function showDuplicateWarning(application) {
     const warning = query("#jap-warning");
     const warningText = query("#jap-warning-text");
+    const warningMeta = query("#jap-warning-meta");
     if (warning && warningText && application) {
       const date = new Date(application.appliedAt).toLocaleDateString();
-      warningText.textContent = `Already applied to ${application.company || "this company"} on ${date}`;
+      const target = application.position || application.context?.title || "this role";
+      warningText.textContent = `Already applied to ${target} on ${date}`;
+      if (warningMeta) {
+        const company = application.company || application.context?.company || "";
+        warningMeta.textContent = company ? `Company: ${company}` : "";
+      }
       warning.classList.remove("hidden");
     }
   }
 
   function hideDuplicateWarning() {
     const warning = query("#jap-warning");
+    const warningMeta = query("#jap-warning-meta");
     if (warning) {
       warning.classList.add("hidden");
+    }
+    if (warningMeta) {
+      warningMeta.textContent = "";
     }
   }
 
@@ -1661,46 +1799,213 @@
     }
   }
 
+  function queuePendingApplicationRecord() {
+    if (!STATE.lastFields.length) {
+      return;
+    }
+
+    STATE.pendingRecord = {
+      url: window.location.href,
+      fields: STATE.lastFields.map((field) => ({ ...field })),
+      applicationContext: buildApplicationContext(),
+      queuedAt: Date.now(),
+    };
+  }
+
+  async function flushPendingApplicationRecord() {
+    if (STATE.recordingInFlight || !STATE.pendingRecord) {
+      return;
+    }
+
+    const pending = STATE.pendingRecord;
+    STATE.recordingInFlight = true;
+
+    try {
+      const response = await ext.runtime.sendMessage({
+        type: "recordApplication",
+        url: pending.url,
+        fields: pending.fields,
+        applicationContext: pending.applicationContext,
+      });
+
+      if (response?.ok) {
+        STATE.pendingRecord = null;
+      }
+    } catch {
+      // Ignore recording errors; user can retry from current page flow.
+    } finally {
+      STATE.recordingInFlight = false;
+    }
+  }
+
+  function shouldTreatAsSubmitClick(target) {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+
+    if (target.closest('button[type="submit"], input[type="submit"]')) {
+      return true;
+    }
+
+    const submitLike = target.closest(
+      '[data-qa*="submit"], [data-automation-id*="submit"], [aria-label*="submit" i], [aria-label*="apply" i]',
+    );
+    if (!submitLike) {
+      return false;
+    }
+
+    const label = normalizeText(
+      submitLike.textContent ||
+      submitLike.getAttribute("aria-label") ||
+      submitLike.getAttribute("value") ||
+      "",
+    );
+
+    return label.includes("apply") || label.includes("submit");
+  }
+
+  function attachRecordHooks() {
+    if (STATE.recordHooksAttached) {
+      return;
+    }
+
+    STATE.recordHooksAttached = true;
+
+    document.addEventListener(
+      "submit",
+      () => {
+        window.setTimeout(() => {
+          flushPendingApplicationRecord();
+        }, 250);
+      },
+      true,
+    );
+
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (!shouldTreatAsSubmitClick(event.target)) {
+          return;
+        }
+
+        window.setTimeout(() => {
+          flushPendingApplicationRecord();
+        }, 350);
+      },
+      true,
+    );
+
+    window.addEventListener(
+      "beforeunload",
+      () => {
+        flushPendingApplicationRecord();
+      },
+      true,
+    );
+  }
+
   async function runScan() {
     setStatus("Scanning...");
     try {
+      if (STATE.pendingRecord && STATE.pendingRecord.url !== window.location.href) {
+        STATE.pendingRecord = null;
+      }
+
+      STATE.lastSuggestions = [];
+      STATE.lastFields = [];
+      STATE.lastScanUrl = "";
+
       const fields = extractFields();
       if (!fields.length) {
         setStatus("No fields found");
-        return;
+        return false;
       }
 
       STATE.lastFields = fields;
+      const applicationContext = buildApplicationContext();
 
-      const checkResponse = await ext.runtime.sendMessage({ type: "checkApplication", fields });
-      if (checkResponse?.ok && checkResponse.payload?.alreadyApplied) {
-        STATE.alreadyApplied = checkResponse.payload.application;
-        setStatus("Already applied!");
-        showDuplicateWarning(checkResponse.payload.application);
-        return;
+      const bypassDuplicateCheck = STATE.bypassDuplicateCheckOnce;
+      STATE.bypassDuplicateCheckOnce = false;
+
+      if (!bypassDuplicateCheck) {
+        const checkResponse = await ext.runtime.sendMessage({
+          type: "checkApplication",
+          fields,
+          applicationContext,
+        });
+        if (checkResponse?.ok && checkResponse.payload?.alreadyApplied) {
+          STATE.alreadyApplied = checkResponse.payload.application;
+          STATE.lastSuggestions = [];
+          STATE.lastScanUrl = window.location.href;
+          setStatus("Already applied!");
+          showDuplicateWarning(checkResponse.payload.application);
+          return false;
+        }
       }
 
       STATE.alreadyApplied = null;
-      const response = await ext.runtime.sendMessage({ type: "scanAndResolve", fields });
+      hideDuplicateWarning();
+      const response = await ext.runtime.sendMessage({
+        type: "scanAndResolve",
+        fields,
+        applicationContext,
+      });
       if (!response || !response.ok) {
         setStatus(`Error: ${response?.error || "failed"}`);
-        return;
+        return false;
       }
       STATE.lastSuggestions = response.session?.suggestions || [];
-      setStatus(`Found ${fields.length} fields`);
+      STATE.lastScanUrl = window.location.href;
+      if (!STATE.lastSuggestions.length) {
+        setStatus(`Found ${fields.length} fields (no suggestions)`);
+        return true;
+      }
+
+      const suggestedCount = STATE.lastSuggestions.filter((item) => item && item.suggested).length;
+      setStatus(`Found ${fields.length} fields (${suggestedCount} ready)`);
+      return true;
     } catch (e) {
       setStatus(`Error: ${e?.message || e}`);
+      return false;
     }
   }
 
   async function runApply() {
+    if (STATE.alreadyApplied) {
+      setStatus("Blocked: already applied");
+      showDuplicateWarning(STATE.alreadyApplied);
+      return;
+    }
+
+    if (STATE.lastScanUrl && STATE.lastScanUrl !== window.location.href) {
+      setStatus("Page changed, rescan required");
+      return;
+    }
+
+    if (!Array.isArray(STATE.lastSuggestions) || !STATE.lastSuggestions.length) {
+      setStatus("No suggestions yet (click Fill)");
+      return;
+    }
+
     setStatus("Applying...");
     try {
-      const result = applyBatch(STATE.lastSuggestions);
-      if (result.appliedCount > 0 && STATE.lastFields.length > 0) {
-        await ext.runtime.sendMessage({ type: "recordApplication", fields: STATE.lastFields });
+      const approvedItems = STATE.lastSuggestions.filter(
+        (item) => item && item.suggested && hasMeaningfulValue(item.value),
+      );
+
+      if (!approvedItems.length) {
+        setStatus("No approved suggestions to apply");
+        return;
       }
-      setStatus(`Applied ${result.appliedCount} fields`);
+
+      const result = applyBatch(approvedItems);
+      if (result.appliedCount <= 0) {
+        setStatus("Could not apply any fields");
+        return;
+      }
+
+      queuePendingApplicationRecord();
+      setStatus(`Applied ${result.appliedCount} fields (submit form to record)`);
     } catch (e) {
       setStatus(`Error: ${e?.message || e}`);
     }
@@ -1710,7 +2015,7 @@
     if (!STATE.booted) {
       STATE.booted = true;
       if (getActiveAdapter()) {
-        loadProfileFileHints();
+        attachRecordHooks();
         showOverlay();
       }
     }

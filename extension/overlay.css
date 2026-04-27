@@ -20,3 +20,4 @@
 .jap-status { flex: 1; text-align: right; font-size: 12px; color: #888; }
 .jap-warning { padding: 10px; background: #2d1f1f; border-top: 1px solid #ff6b6b; font-size: 12px; color: #ff6b6b; display: flex; flex-direction: column; gap: 8px; }
 .jap-warning.hidden { display: none !important; }
+.jap-warning-meta { color: #ffc9c9; font-size: 11px; }
