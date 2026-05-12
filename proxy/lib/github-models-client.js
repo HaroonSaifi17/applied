@@ -107,7 +107,7 @@ class GitHubModelsClient {
       model,
       messages,
       temperature: 0,
-      max_tokens: 1800,
+      max_tokens: 6000,
       response_format: responseFormat,
     };
 
