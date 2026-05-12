@@ -10,3 +10,4 @@ proxy/cache/
 coverage/
 dist/
 tmp/
+\nprofile-data/generated-resumes/

@@ -134,13 +134,13 @@ function buildMessages(profile, context, items) {
 
   const payload = {
     job,
+    candidateFacts: profile.facts || {},
     rules: [
-      "1. AGGRESSIVELY integrate exact keywords from the job description into the bullet points.",
-      "2. Ensure the rewritten bullet sounds natural but scores highly on ATS scanners.",
-      "3. STRICT WORD COUNT: The rewritten text MUST have exactly 'originalWordCount' words, or exactly 'originalWordCount - 1' words. Never more, never less.",
-      "4. Do not invent fake metrics or experience. Map existing facts to job requirements.",
-      "5. Preserve LaTeX formatting tags (like \\textbf{...} or \\href{...}) from the original bullet. You may wrap new ATS keywords in \\textbf{...} to highlight them.",
-      "6. Return the plain bullet text only, without any leading bullet marker like '-' or '*'."
+      "Rewrite only resume bullets that can be truthfully improved using existing candidate facts.",
+      "Do not invent employers, metrics, tools, years, degrees, links, or outcomes.",
+      "Preserve each bullet meaning and keep each rewritten bullet within originalWordCount plus or minus one word.",
+      "Prefer exact job-description keywords where truthful and natural.",
+      "Return plain text bullet content only, with no leading bullet marker.",
     ],
     bullets: items.map((item) => ({
       index: item.index,
@@ -152,8 +152,7 @@ function buildMessages(profile, context, items) {
   return [
     {
       role: "system",
-      content:
-        "You are an expert ATS resume optimizer. You rewrite resume bullets to perfectly match job descriptions by aggressively injecting relevant ATS keywords. You strictly follow word-count limitations (n or n-1) and preserve critical LaTeX formatting.",
+      content: "You tailor LaTeX resume bullet text for ATS matching while preserving truth and strict word-count limits. Return strict JSON.",
     },
     {
       role: "user",
@@ -175,7 +174,7 @@ function normalizeRewrites(items, rawRewrites) {
     }
 
     const count = wordCount(text);
-    if (count !== item.wordCount && count !== item.wordCount - 1) {
+    if (Math.abs(count - item.wordCount) > 1) {
       continue;
     }
 
