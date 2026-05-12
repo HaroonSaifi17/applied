@@ -108,12 +108,20 @@ function sanitizeApplicationContext(context) {
 
   const title = String(context.title || context.jobTitle || "").trim();
   const company = String(context.company || context.employer || "").trim();
+  const description = String(context.description || context.jobDescription || "").trim();
+  const sourceUrl = sanitizeUrl(context.url || context.sourceUrl || "");
 
   if (title) {
     normalized.title = title;
   }
   if (company) {
     normalized.company = company;
+  }
+  if (description) {
+    normalized.description = description.slice(0, 12000);
+  }
+  if (sourceUrl) {
+    normalized.url = sourceUrl;
   }
 
   return normalized;

@@ -79,16 +79,20 @@ test("sanitizeFields falls back to name-based ids", () => {
   assert.equal(fields[1].id, "candidate_phone");
 });
 
-test("sanitizeApplicationContext keeps only title/company", () => {
+test("sanitizeApplicationContext keeps title, company, description, and url", () => {
   const context = sanitizeApplicationContext({
     title: "Senior Engineer",
     employer: "Acme",
+    description: "Build reliable APIs.",
+    url: "https://example.com/job#apply",
     ignored: "value",
   });
 
   assert.deepEqual(context, {
     title: "Senior Engineer",
     company: "Acme",
+    description: "Build reliable APIs.",
+    url: "https://example.com/job",
   });
 });
 

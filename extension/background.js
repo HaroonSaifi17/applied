@@ -134,6 +134,7 @@
       fields: scan.fields,
       applicationContext: applicationContext || {},
       suggestions: result.suggestions || [],
+      resume: result.resume || null,
     };
     sessionStore.set(tab.id, session);
     return session;

@@ -25,12 +25,25 @@ Applied is a privacy-first browser extension that helps autofill job application
 
 Coverage below is practical support level based on current adapter + fill strategy in this repository.
 
-| ATS / Site | Support Level | Estimated Autofill Coverage | Notes |
-| --- | --- | --- | --- |
-| Greenhouse | High | ~95% | Best overall extraction and select/radio handling. |
-| Lever | High | ~90% | Strong coverage on common text/select/radio patterns. |
-| Ashby | Medium-High | ~85% | Good coverage, but custom UI variants can differ by company. |
-| Workday | Medium | ~75% | Works on common flows, but Workday DOM variations are broad. |
+| ATS / Site      | Support Level | Estimated Autofill Coverage | Notes                                                                            |
+| --------------- | ------------- | --------------------------- | -------------------------------------------------------------------------------- |
+| Greenhouse      | High          | ~95%                        | Best overall extraction and select/radio handling.                               |
+| Lever           | Complete      | ~100%                       | Strong coverage on common text/select/radio patterns.                            |
+| Ashby           | Medium-High   | ~85%                        | Good coverage, but custom UI variants can differ by company.                     |
+| Workday         | Medium-High   | ~85%                        | Async prompt/dropdown handling is supported, but Workday DOM variants are broad. |
+| Indeed          | Medium        | ~75%                        | Common text/select/radio flows supported.                                        |
+| LinkedIn Jobs   | Medium        | ~70%                        | Common Easy Apply fields supported.                                              |
+| SmartRecruiters | Medium        | ~75%                        | Common text/select/radio flows supported.                                        |
+
+## User Flow
+
+1. Start the local proxy with `npm run start:proxy`.
+2. Open a supported job application page. The extension auto-triggers the Applied widget.
+3. Click **Fill application**.
+4. Applied scans the form and job description, resolves answers locally/with AI, fills approved fields, and creates a tailored resume from `profile-data/Mohd_Haroon_Resume.tex`.
+5. Attach the generated resume from `profile-data/generated-resumes/pdf/`. If no LaTeX compiler is installed, use the generated `.tex` from `profile-data/generated-resumes/temp/`.
+
+Resume tailoring preserves truthfulness and enforces each rewritten bullet to stay within the original bullet word count plus or minus one word.
 
 ## Getting Started
 
@@ -60,6 +73,7 @@ Put your structured profile files in `profile-data/`:
 
 - `profile.v2.json` (primary profile facts)
 - `answers.v2.txt` (optional answer bank for long-form responses)
+- `Mohd_Haroon_Resume.tex` (LaTeX resume template used for job-specific resume generation)
 
 Then reload profile data from the extension UI or call the proxy reload endpoint.
 
@@ -67,6 +81,8 @@ Then reload profile data from the extension UI or call the proxy reload endpoint
 
 - Extension proxy timeout is tuned to **50s** to reduce first-click timeouts on slower models.
 - Proxy caches resolved forms and reuses in-flight work for identical requests.
+- Select/dropdown filling opens async menus, waits for fetched options, and clicks the matched option instead of only setting text.
+- Resume tailoring runs during form resolution and writes generated artifacts under `profile-data/generated-resumes/`.
 
 ## Development
 

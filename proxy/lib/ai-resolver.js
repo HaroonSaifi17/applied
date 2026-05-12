@@ -221,6 +221,10 @@ function buildPromptContext(profile, unresolvedFields, context, runtimeContext) 
         runtimeContext && (runtimeContext.company || runtimeContext.employer)
           ? String(runtimeContext.company || runtimeContext.employer)
           : "",
+      jobDescription:
+        runtimeContext && (runtimeContext.description || runtimeContext.jobDescription)
+          ? truncate(runtimeContext.description || runtimeContext.jobDescription, 2500)
+          : "",
     },
     candidateProfile: compactFacts(facts),
     unresolvedFields: unresolvedFields.map(toAiField),

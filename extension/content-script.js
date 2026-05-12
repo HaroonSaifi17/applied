@@ -38,6 +38,14 @@
       "[class*='company']",
       "[class*='employer']",
     ],
+    descriptionSelectors: [
+      "[data-qa='job-description']",
+      "[data-automation-id='jobPostingDescription']",
+      "[class*='job-description']",
+      "[class*='posting-description']",
+      "[class*='description']",
+      "main",
+    ],
   };
 
   const LEVER_ADAPTER = {
@@ -127,7 +135,7 @@
     },
     collectCandidateElements() {
       const set = new Set();
-      const candidates = queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select, [data-automation-id*="text"], [data-automation-id="promptInput"], [data-automation-id^="input_"]');
+      const candidates = queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select, [role="combobox"], [data-automation-id*="text"], [data-automation-id="promptInput"], [data-automation-id^="input_"], [data-automation-id*="dropdown"], [data-automation-id*="select"]');
 
       candidates.forEach((el) => {
         if (!(el instanceof HTMLElement) || !isVisible(el)) {
@@ -149,7 +157,122 @@
     },
   };
 
-  const ADAPTERS = [GREENHOUSE_ADAPTER, LEVER_ADAPTER, ASHBY_ADAPTER, WORKDAY_ADAPTER];
+  const INDEED_ADAPTER = {
+    id: "indeed",
+    matches(hostname) {
+      const value = normalizeText(hostname);
+      return hostIs(value, "indeed.com");
+    },
+    collectCandidateElements() {
+      const set = new Set();
+      const add = (el) => {
+        const normalized = normalizeCandidateElement(el);
+        if (normalized) {
+          set.add(normalized);
+        }
+      };
+
+      queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select').forEach(add);
+      queryAll('[role="combobox"]').forEach(add);
+      queryAll('input[type="radio"]').forEach(add);
+
+      return Array.from(set);
+    },
+  };
+
+  const LINKEDIN_ADAPTER = {
+    id: "linkedin",
+    matches(hostname) {
+      const value = normalizeText(hostname);
+      return hostIs(value, "linkedin.com");
+    },
+    collectCandidateElements() {
+      const set = new Set();
+      const add = (el) => {
+        const normalized = normalizeCandidateElement(el);
+        if (normalized) {
+          set.add(normalized);
+        }
+      };
+
+      queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select').forEach(add);
+      queryAll('[role="combobox"]').forEach(add);
+      queryAll('input[type="radio"]').forEach(add);
+
+      return Array.from(set);
+    },
+  };
+
+  const SMARTRECRUITERS_ADAPTER = {
+    id: "smartrecruiters",
+    matches(hostname) {
+      const value = normalizeText(hostname);
+      return hostIs(value, "smartrecruiters.com");
+    },
+    collectCandidateElements() {
+      const set = new Set();
+      const add = (el) => {
+        const normalized = normalizeCandidateElement(el);
+        if (normalized) {
+          set.add(normalized);
+        }
+      };
+
+      queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select').forEach(add);
+      queryAll('[role="combobox"], [aria-haspopup="listbox"]').forEach(add);
+      queryAll('input[type="radio"]').forEach(add);
+
+      return Array.from(set);
+    },
+  };
+
+  const WORKABLE_ADAPTER = {
+    id: "workable",
+    matches(hostname) {
+      const value = normalizeText(hostname);
+      return hostIs(value, "workable.com");
+    },
+    collectCandidateElements() {
+      const set = new Set();
+      const add = (el) => {
+        const normalized = normalizeCandidateElement(el);
+        if (normalized) {
+          set.add(normalized);
+        }
+      };
+
+      queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select').forEach(add);
+      queryAll('[role="combobox"], [aria-haspopup="listbox"]').forEach(add);
+      queryAll('input[type="radio"]').forEach(add);
+
+      return Array.from(set);
+    },
+  };
+
+  const BAMBOOHR_ADAPTER = {
+    id: "bamboohr",
+    matches(hostname) {
+      const value = normalizeText(hostname);
+      return hostIs(value, "bamboohr.com");
+    },
+    collectCandidateElements() {
+      const set = new Set();
+      const add = (el) => {
+        const normalized = normalizeCandidateElement(el);
+        if (normalized) {
+          set.add(normalized);
+        }
+      };
+
+      queryAll('input:not([type="hidden"]):not([type="file"]), textarea, select').forEach(add);
+      queryAll('[role="combobox"], [aria-haspopup="listbox"]').forEach(add);
+      queryAll('input[type="radio"]').forEach(add);
+
+      return Array.from(set);
+    },
+  };
+
+  const ADAPTERS = [GREENHOUSE_ADAPTER, LEVER_ADAPTER, ASHBY_ADAPTER, WORKDAY_ADAPTER, INDEED_ADAPTER, LINKEDIN_ADAPTER, SMARTRECRUITERS_ADAPTER, WORKABLE_ADAPTER, BAMBOOHR_ADAPTER];
 
   function query(selector, root = document) {
     return root.querySelector(selector);
@@ -186,6 +309,24 @@
       .replace(/\s*[\|\-\u2013\u2014]\s*.*$/, "")
       .replace(/^apply\s+(for\s+)?/i, "")
       .trim();
+  }
+
+  function sleep(milliseconds) {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, milliseconds);
+    });
+  }
+
+  async function waitFor(predicate, timeoutMs = 1800, intervalMs = 75) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt <= timeoutMs) {
+      const value = predicate();
+      if (value) {
+        return value;
+      }
+      await sleep(intervalMs);
+    }
+    return null;
   }
 
   function cssEscape(value) {
@@ -547,6 +688,28 @@
     return "";
   }
 
+  function extractJobDescriptionText() {
+    const seen = new Set();
+    const chunks = [];
+
+    for (const selector of APPLICATION_CONTEXT_HINTS.descriptionSelectors) {
+      const nodes = queryAll(selector);
+      for (const node of nodes) {
+        if (!node || seen.has(node)) {
+          continue;
+        }
+        seen.add(node);
+        const text = cleanText(nodeText(node));
+        if (text.length >= 120) {
+          chunks.push(text);
+        }
+      }
+    }
+
+    const joined = chunks.join("\n\n").trim() || cleanText(document.body ? document.body.innerText : "");
+    return joined.slice(0, 12000);
+  }
+
   function inferCompanyFromHost() {
     const host = normalizedHostname();
     const path = window.location.pathname;
@@ -589,6 +752,8 @@
     const context = {};
     if (title) context.title = title;
     if (company) context.company = company;
+    const description = extractJobDescriptionText();
+    if (description) context.description = description;
     context.url = window.location.href;
     return context;
   }
@@ -752,6 +917,99 @@
     }
 
     return options;
+  }
+
+  function optionMatchesValue(option, value) {
+    const target = normalizeText(value);
+    if (!target) {
+      return false;
+    }
+
+    const label = normalizeText(option && (option.label || option.textContent || ""));
+    const rawValue = normalizeText(option && (option.value || option.getAttribute?.("data-value") || option.getAttribute?.("value") || ""));
+
+    return (
+      label === target ||
+      rawValue === target ||
+      (label && (label.includes(target) || target.includes(label))) ||
+      (rawValue && (rawValue.includes(target) || target.includes(rawValue)))
+    );
+  }
+
+  function getOpenSelectOptions() {
+    const selectors = [
+      '[role="option"]',
+      '[data-automation-id="promptOption"]',
+      '[id*="-option-"]',
+      '[class*="select__option"]',
+      '[class*="option--"]',
+      '[class*="-option"]',
+      '[class*="option"]',
+      'li[aria-selected]',
+    ];
+
+    return queryAll(selectors.join(", "))
+      .filter((option) => option instanceof HTMLElement && isVisible(option))
+      .map((option) => ({
+        node: option,
+        label: cleanText(option.textContent || option.getAttribute("data-automation-label") || ""),
+        value: option.getAttribute("data-value") || option.getAttribute("value") || cleanText(option.textContent || ""),
+      }))
+      .filter((option) => option.label || option.value);
+  }
+
+  async function openSelectMenu(el, searchText = "") {
+    if (!(el instanceof HTMLElement)) {
+      return false;
+    }
+
+    const control = findReactSelectControl(el) || findGreenhouseSelectContainer(el) || el.closest('[role="combobox"], [aria-haspopup="listbox"], [class*="select"]') || el;
+    const input = control.querySelector?.('input:not([type="hidden"]), textarea') || (el instanceof HTMLInputElement ? el : null);
+    const toggle = control.querySelector?.('button[aria-label*="toggle" i], button[aria-label*="open" i], [class*="indicator"], [class*="dropdown"]');
+
+    document.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Escape",
+      code: "Escape",
+      bubbles: true,
+      cancelable: true,
+    }));
+    await sleep(60);
+    control.scrollIntoView({ block: "center", inline: "nearest" });
+    await sleep(120);
+    if (toggle instanceof HTMLElement) {
+      toggle.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+      toggle.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+      toggle.click();
+    } else {
+      control.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+      control.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+      control.click();
+    }
+    if (input instanceof HTMLElement) {
+      input.focus();
+      input.click();
+      if (searchText && (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) {
+        syncNativeInputValue(input, searchText);
+        dispatchInputEvents(input);
+      }
+      input.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "ArrowDown",
+        code: "ArrowDown",
+        bubbles: true,
+        cancelable: true,
+      }));
+    } else {
+      control.focus();
+      control.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "ArrowDown",
+        code: "ArrowDown",
+        bubbles: true,
+        cancelable: true,
+      }));
+    }
+
+    await sleep(150);
+    return true;
   }
 
   function extractGreenhouseSelectOptions(container) {
@@ -1139,36 +1397,26 @@
     return null;
   }
 
-  function fillWorkdaySelect(el, value) {
+  async function fillWorkdaySelect(el, value) {
     const target = normalizeText(value);
     if (!target) {
       return false;
     }
 
-    const options = document.querySelectorAll('[data-automation-id="promptOption"]');
-    for (const option of options) {
-      const optionLabel = normalizeText(option.textContent || option.getAttribute("data-automation-label") || "");
-      if (optionLabel === target || target.includes(optionLabel) || optionLabel.includes(target)) {
-        const roleOption = option.closest('[role="option"]');
-        if (roleOption) {
-          roleOption.click();
-          return true;
-        }
-        option.click();
-        return true;
-      }
+    await openSelectMenu(el, value);
+
+    const matched = await waitFor(() => {
+      const options = getOpenSelectOptions();
+      return options.find((option) => optionMatchesValue(option, value));
+    }, 2600);
+
+    if (matched && matched.node) {
+      const roleOption = matched.node.closest('[role="option"]');
+      (roleOption || matched.node).click();
+      return true;
     }
 
-    const roleOptions = document.querySelectorAll('[role="option"]');
-    for (const option of roleOptions) {
-      const optionLabel = normalizeText(option.textContent || "");
-      if (optionLabel === target || target.includes(optionLabel) || optionLabel.includes(target)) {
-        option.click();
-        return true;
-      }
-    }
-
-    const promptInput = el.querySelector('[data-automation-id="promptInput"]');
+    const promptInput = el.querySelector?.('[data-automation-id="promptInput"]') || (el instanceof HTMLInputElement ? el : null);
     if (promptInput) {
       syncNativeInputValue(promptInput, value);
       dispatchInputEvents(promptInput);
@@ -1203,7 +1451,7 @@
     return hidden instanceof HTMLInputElement ? hidden : null;
   }
 
-  function fillGreenhouseSelect(inputEl, displayValue, numericValue) {
+  async function fillGreenhouseSelect(inputEl, displayValue, numericValue) {
     if (!inputEl) {
       return false;
     }
@@ -1228,6 +1476,20 @@
       }
     }
     
+    await openSelectMenu(inputEl, displayValue);
+
+    const matched = await waitFor(() => {
+      const options = getOpenSelectOptions();
+      return options.find((option) => optionMatchesValue(option, displayValue) || optionMatchesValue(option, targetValue));
+    }, 2200);
+
+    if (matched && matched.node) {
+      matched.node.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+      matched.node.click();
+      await sleep(80);
+      return true;
+    }
+
     const visibleInput = container.querySelector('.select__input');
     if (visibleInput) {
       visibleInput.focus();
@@ -1324,7 +1586,7 @@
     return null;
   }
 
-  function fillReactSelect(el, value) {
+  async function fillReactSelect(el, value) {
     const control = findReactSelectControl(el);
     if (!control) {
       return false;
@@ -1335,8 +1597,18 @@
       return false;
     }
 
-    control.focus();
-    control.click();
+    await openSelectMenu(el, target);
+
+    const matched = await waitFor(() => {
+      const options = getOpenSelectOptions();
+      return options.find((option) => optionMatchesValue(option, target));
+    }, 2200);
+
+    if (matched && matched.node) {
+      matched.node.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+      matched.node.click();
+      return true;
+    }
 
     const input = control.querySelector('input, [class*="input"]');
     if (input) {
@@ -1348,7 +1620,11 @@
     return true;
   }
 
-  function fillCustomSelect(el, value) {
+  async function fillCustomSelect(el, value) {
+    if (getActiveAdapter()?.id === "workday" || isWorkdayInput(el)) {
+      return fillWorkdaySelect(el, value);
+    }
+
     if (isGreenhouseSelect(el) || isAshbySelect(el)) {
       const container = findGreenhouseSelectContainer(el);
       if (container) {
@@ -1371,16 +1647,20 @@
 
     const role = normalizeText(el.getAttribute("role"));
     if (role === "combobox") {
+      const opened = await openSelectMenu(el, value);
+      if (opened) {
+        const matched = await waitFor(() => getOpenSelectOptions().find((option) => optionMatchesValue(option, value)), 1800);
+        if (matched && matched.node) {
+          matched.node.click();
+          return true;
+        }
+      }
       return fillCombobox(el, value);
     }
 
     const className = normalizeText(el.className || "");
     if (className.includes("select") || el.tagName === "SELECT") {
       return fillSelect(el, value);
-    }
-
-    if (isWorkdayInput(el)) {
-      return fillWorkdaySelect(el, value);
     }
 
     return fillCombobox(el, value);
@@ -1494,7 +1774,7 @@
     return true;
   }
 
-  function applyItem(item, allowRescan = true) {
+  async function applyItem(item, allowRescan = true) {
     if (!item || !item.fieldId) {
       return false;
     }
@@ -1554,17 +1834,18 @@
     return false;
   }
 
-  function applyBatch(items) {
+  async function applyBatch(items) {
     let appliedCount = 0;
     let skippedCount = 0;
 
-    items.forEach((item) => {
-      if (applyItem(item)) {
+    for (const item of items) {
+      if (await applyItem(item)) {
         appliedCount += 1;
       } else {
         skippedCount += 1;
       }
-    });
+      await sleep(60);
+    }
 
     return { appliedCount, skippedCount };
   }
@@ -1867,10 +2148,16 @@
       }
 
       const suggestedCount = STATE.lastSuggestions.filter((item) => item && item.suggested).length;
+      const resume = response.session?.resume;
+      const resumeSuffix = resume?.pdfPath
+        ? " + resume ready"
+        : resume?.texPath
+          ? " + resume .tex ready"
+          : "";
       if (suggestedCount === 0) {
         setStatus(`Found ${fields.length} fields (0 suggestions ready)`, "error");
       } else {
-        setStatus(`Found ${fields.length} fields (${suggestedCount} ready)`, "success");
+        setStatus(`Found ${fields.length} fields (${suggestedCount} ready)${resumeSuffix}`, "success");
       }
       return true;
     } catch (e) {
@@ -1907,7 +2194,7 @@
         return;
       }
 
-      const result = applyBatch(approvedItems);
+      const result = await applyBatch(approvedItems);
       if (result.appliedCount <= 0) {
         setStatus("Could not apply any fields", "error");
         return;
@@ -1937,7 +2224,9 @@
     }
 
     if (msg.type === "applyAll" && Array.isArray(msg.items)) {
-      sendResponse({ ok: true, ...applyBatch(msg.items) });
+      applyBatch(msg.items)
+        .then((result) => sendResponse({ ok: true, ...result }))
+        .catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
       return true;
     }
 

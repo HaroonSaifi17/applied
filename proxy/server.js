@@ -17,6 +17,7 @@ const {
 } = require("./lib/request-sanitizers");
 const { makeCacheKey, trimCache } = require("./lib/resolve-cache");
 const { mergeSuggestions } = require("./lib/suggestion-merge");
+const { tailorResumeForJob } = require("./lib/resume-tailor");
 const {
   getRelevantContext,
 } = require("./lib/retrieval");
@@ -104,6 +105,17 @@ async function bootstrap() {
     profile,
   ) {
     const startedAt = Date.now();
+    const resumePromise = modelsClient && context.description
+      ? tailorResumeForJob(modelsClient, profile, context).catch((error) => ({
+          ok: false,
+          warning: error instanceof Error ? error.message : String(error),
+        }))
+      : Promise.resolve({
+          ok: false,
+          skipped: true,
+          warning: "Resume tailoring skipped because AI client or job description is unavailable.",
+        });
+
     const deterministic = resolveDeterministic(
       fields,
       profile.facts,
@@ -161,6 +173,7 @@ async function bootstrap() {
     const approvedCount = suggestions.filter(
       (suggestion) => suggestion.suggested,
     ).length;
+    const resume = await resumePromise;
 
     return {
       ok: true,
@@ -178,6 +191,7 @@ async function bootstrap() {
         elapsedMs: Date.now() - startedAt,
       },
       aiWarning,
+      resume,
       suggestions,
       unresolvedQuestions,
     };
@@ -248,7 +262,7 @@ async function bootstrap() {
     }
   });
 
-  app.get("/health", async (_request, response) => {
+  app.post("/check-application", async (request, response) => {
 
     try {
       const url = sanitizeUrl(request.body?.url);
