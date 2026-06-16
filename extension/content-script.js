@@ -600,7 +600,7 @@
     while (sibling && depth < 5) {
       const text = nodeText(sibling);
       if (text && text.length > 10) {
-        return text;
+        return text.split("\n")[0].slice(0, 100);
       }
       sibling = sibling.previousElementSibling;
       depth += 1;
@@ -613,7 +613,7 @@
       let ps = parent.previousElementSibling;
       if (ps) {
         const text = nodeText(ps);
-        if (text && text.length > 10) return text;
+        if (text && text.length > 10) return text.split("\n")[0].slice(0, 100);
       }
       parent = parent.parentElement;
       pDepth += 1;
@@ -1343,13 +1343,17 @@
     }
 
     const className = normalizeText(el.className || "");
-    const parent = el.closest('.select-shell, [class*="select__control"]');
+    const parent = el.closest('.select-shell, [class*="select__control"], [class*="select-container"]');
     
     if (className.includes("select__input") || parent) {
       return true;
     }
 
-    if (el.getAttribute('aria-expanded') !== null) {
+    if (el.getAttribute('aria-expanded') !== null || el.getAttribute('aria-haspopup') === 'listbox') {
+      return true;
+    }
+
+    if (className.includes("gh-select") || className.includes("select-input")) {
       return true;
     }
 
@@ -2148,17 +2152,12 @@
       }
 
       const suggestedCount = STATE.lastSuggestions.filter((item) => item && item.suggested).length;
-      const resume = response.session?.resume;
-      const resumeSuffix = resume?.pdfPath
-        ? " + resume ready"
-        : resume?.texPath
-          ? " + resume .tex ready"
-          : "";
       if (suggestedCount === 0) {
         setStatus(`Found ${fields.length} fields (0 suggestions ready)`, "error");
       } else {
-        setStatus(`Found ${fields.length} fields (${suggestedCount} ready)${resumeSuffix}`, "success");
+        setStatus(`Found ${fields.length} fields (${suggestedCount} ready)`, "success");
       }
+
       return true;
     } catch (e) {
       setStatus(`Error: ${e?.message || e}`, "error");

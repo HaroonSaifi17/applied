@@ -2,7 +2,7 @@
   "name": "autofill-job-extension",
   "version": "0.1.0",
   "private": true,
-  "description": "Firefox Greenhouse autofill extension with localhost GitHub Models proxy.",
+  "description": "Smart job application autofill browser extension with Groq AI proxy.",
   "scripts": {
     "start:proxy": "node proxy/server.js",
     "dev:proxy": "node --watch proxy/server.js",
@@ -11,6 +11,7 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "jsdom": "^29.1.1",
     "pdf-parse": "^1.1.1"
   }
 }

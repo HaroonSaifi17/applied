@@ -2,14 +2,17 @@
 
 const { clamp, parseJsonFromModel } = require("./text-utils");
 
-const BASE_URL = "https://models.github.ai";
+const BASE_URL = "https://api.groq.com/openai/v1";
 
-const DEFAULT_MODELS = ["openai/gpt-5-mini", "openai/gpt-4.1", "openai/gpt-4o"];
+const DEFAULT_MODELS = [
+  "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
+  "llama-4-scout-17b-16e-instruct",
+  "openai/gpt-oss-20b",
+];
 
 const DEFAULT_HEADERS = {
   "Content-Type": "application/json",
-  Accept: "application/vnd.github+json",
-  "X-GitHub-Api-Version": "2026-03-10",
 };
 
 function wait(milliseconds) {
@@ -51,11 +54,11 @@ function extractTextCompletion(responseBody) {
   return String(first.message.content || "").trim();
 }
 
-class GitHubModelsClient {
+class GroqClient {
   constructor(options) {
     const token = options && options.token ? String(options.token).trim() : "";
     if (!token) {
-      throw new Error("GITHUB_TOKEN is missing. Add it to your environment.");
+      throw new Error("GROQ_API_KEY is missing. Add it to your environment.");
     }
 
     this.token = token;
@@ -67,7 +70,7 @@ class GitHubModelsClient {
   }
 
   async checkAvailableModels() {
-    const response = await fetch(`${this.baseUrl}/catalog/models`, {
+    const response = await fetch(`${this.baseUrl}/models`, {
       method: "GET",
       headers: {
         ...DEFAULT_HEADERS,
@@ -79,15 +82,14 @@ class GitHubModelsClient {
       const payload = await safeJson(response);
       throw new HttpError(
         response.status,
-        `Failed to fetch model catalog (${response.status}).`,
+        `Failed to fetch model list (${response.status}).`,
         payload,
       );
     }
 
-    const catalog = await response.json();
-    const availableIds = new Set(
-      Array.isArray(catalog) ? catalog.map((entry) => entry.id) : [],
-    );
+    const body = await response.json();
+    const catalog = Array.isArray(body.data) ? body.data : [];
+    const availableIds = new Set(catalog.map((entry) => entry.id));
 
     const availableModels = this.models.filter((model) =>
       availableIds.has(model),
@@ -98,7 +100,7 @@ class GitHubModelsClient {
 
     return {
       preferred: selectedModels,
-      catalogSize: Array.isArray(catalog) ? catalog.length : 0,
+      catalogSize: catalog.length,
     };
   }
 
@@ -108,10 +110,13 @@ class GitHubModelsClient {
       messages,
       temperature: 0,
       max_tokens: 6000,
-      response_format: responseFormat,
     };
 
-    const response = await fetch(`${this.baseUrl}/inference/chat/completions`, {
+    if (responseFormat) {
+      payload.response_format = responseFormat;
+    }
+
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         ...DEFAULT_HEADERS,
@@ -139,21 +144,20 @@ class GitHubModelsClient {
   }
 
   async completeStructured(messages, responseSchema) {
-    const responseFormat = {
-      type: "json_schema",
-      json_schema: responseSchema,
+    const schemaJson = JSON.stringify(responseSchema.schema || responseSchema);
+    const systemMessage = {
+      role: "system",
+      content: `You must respond with valid JSON only. No markdown, no explanation, just raw JSON.\n\nExpected JSON schema:\n${schemaJson}`,
     };
+
+    const fullMessages = [systemMessage, ...messages];
 
     const errors = [];
 
     for (const model of this.models) {
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-          const completion = await this.postCompletion(
-            model,
-            messages,
-            responseFormat,
-          );
+          const completion = await this.postCompletion(model, fullMessages, null);
           const parsed = parseJsonFromModel(completion.text);
 
           if (!parsed) {
@@ -196,8 +200,52 @@ class GitHubModelsClient {
     failure.details = errors;
     throw failure;
   }
+
+  async complete(messages) {
+    const errors = [];
+
+    for (const model of this.models) {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const completion = await this.postCompletion(model, messages, null);
+          return {
+            model,
+            text: completion.text,
+            raw: completion.raw,
+          };
+        } catch (error) {
+          const status =
+            error && typeof error.status === "number" ? error.status : null;
+
+          errors.push({
+            model,
+            attempt: attempt + 1,
+            status,
+            message: error instanceof Error ? error.message : String(error),
+            payload: error && error.payload ? error.payload : null,
+          });
+
+          const retriable =
+            status === 429 || (status !== null && status >= 500);
+
+          if (!retriable) {
+            break;
+          }
+
+          const delay = clamp(350 * Math.pow(2, attempt), 350, 2400);
+          await wait(delay);
+        }
+      }
+    }
+
+    const tail = errors.slice(-1)[0];
+    const reason = tail ? tail.message : "Unknown completion error";
+    const failure = new Error(`All model attempts failed: ${reason}`);
+    failure.details = errors;
+    throw failure;
+  }
 }
 
 module.exports = {
-  GitHubModelsClient,
+  GroqClient,
 };

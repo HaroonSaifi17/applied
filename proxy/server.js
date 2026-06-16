@@ -7,7 +7,7 @@ const { AnswerMemory } = require("./lib/answer-memory");
 const { ApplicationHistory } = require("./lib/application-history");
 const { resolveWithAi, createQuestionSummary } = require("./lib/ai-resolver");
 const { resolveDeterministic } = require("./lib/deterministic-resolver");
-const { GitHubModelsClient } = require("./lib/github-models-client");
+const { GroqClient } = require("./lib/groq-client");
 const { ProfileStore } = require("./lib/profile-store");
 const {
   sanitizeUrl,
@@ -17,7 +17,6 @@ const {
 } = require("./lib/request-sanitizers");
 const { makeCacheKey, trimCache } = require("./lib/resolve-cache");
 const { mergeSuggestions } = require("./lib/suggestion-merge");
-const { tailorResumeForJob } = require("./lib/resume-tailor");
 const {
   getRelevantContext,
 } = require("./lib/retrieval");
@@ -51,20 +50,20 @@ async function bootstrap() {
   let modelsClient = null;
 
   let modelStatus = {
-    preferred: ["openai/gpt-5-mini", "openai/gpt-4.1", "openai/gpt-4o"],
+    preferred: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama-4-scout-17b-16e-instruct", "openai/gpt-oss-20b"],
     catalogSize: null,
     checkedAt: null,
   };
 
-  const token = String(process.env.GITHUB_TOKEN || "").trim();
+  const token = String(process.env.GROQ_API_KEY || "").trim();
   if (!token) {
     modelStatus = {
       ...modelStatus,
       checkedAt: nowIso(),
-      warning: "GITHUB_TOKEN missing; AI model resolution disabled.",
+      warning: "GROQ_API_KEY missing; AI model resolution disabled.",
     };
   } else {
-    modelsClient = new GitHubModelsClient({ token });
+    modelsClient = new GroqClient({ token });
 
     try {
       const check = await modelsClient.checkAvailableModels();
@@ -105,16 +104,6 @@ async function bootstrap() {
     profile,
   ) {
     const startedAt = Date.now();
-    const resumePromise = modelsClient && context.description
-      ? tailorResumeForJob(modelsClient, profile, context).catch((error) => ({
-          ok: false,
-          warning: error instanceof Error ? error.message : String(error),
-        }))
-      : Promise.resolve({
-          ok: false,
-          skipped: true,
-          warning: "Resume tailoring skipped because AI client or job description is unavailable.",
-        });
 
     const deterministic = resolveDeterministic(
       fields,
@@ -130,7 +119,7 @@ async function bootstrap() {
     let aiWarning = null;
 
     if (!modelsClient) {
-      aiWarning = "AI resolver unavailable: GITHUB_TOKEN missing.";
+      aiWarning = "AI resolver unavailable: GROQ_API_KEY missing.";
     } else if (deterministic.unresolved.length) {
       const retrievalPromise = Promise.resolve().then(() =>
         getRelevantContext(profile, deterministic.unresolved),
@@ -173,7 +162,6 @@ async function bootstrap() {
     const approvedCount = suggestions.filter(
       (suggestion) => suggestion.suggested,
     ).length;
-    const resume = await resumePromise;
 
     return {
       ok: true,
@@ -191,7 +179,6 @@ async function bootstrap() {
         elapsedMs: Date.now() - startedAt,
       },
       aiWarning,
-      resume,
       suggestions,
       unresolvedQuestions,
     };

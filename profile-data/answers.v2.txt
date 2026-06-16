@@ -1,56 +1,56 @@
 Question: Why are you interested in this role?
-Answer: I'm interested in this role because it aligns with my experience building scalable full-stack systems and optimizing performance-critical applications. I've worked with React, Angular, Node.js, and Web3 integrations, and I'm looking to contribute to high-impact products while continuing to grow in system design and engineering depth.
+Answer: I'm interested in this role because it aligns with my experience building scalable full-stack systems and optimizing performance-critical applications. I've worked with React, Angular, TypeScript, Node.js, tRPC, and Web3 integrations, and I'm looking to contribute to high-impact products while continuing to grow in system design and engineering depth.
 
 Question: Tell us about yourself
-Answer: I'm a full stack developer with experience across React, Angular, and Node.js, along with exposure to Web3 and AI-assisted engineering workflows. I've worked at a DeFi startup where I built scalable frontend systems, optimized blockchain interactions, and contributed to backend architecture handling complex transaction flows. I enjoy building performant user-facing applications and developer tools.
+Answer: I'm a self-taught full stack developer building production-grade web applications with React, TypeScript, Node.js, and Web3. I previously interned at MeowFi, a DeFi startup, where I architected a type-safe NPM monorepo, engineered Liquidity Pools and Bribe Vaults via Balancer V3, and optimized blockchain interactions reducing RPC requests by 40%. I also built PrepZone, an EdTech platform with Angular and Node.js serving 700+ questions with adaptive test generation. I'm a final-year ECE student who started coding on an Android phone with Termux.
 
 Question: What are your strengths?
-Answer: Strong full-stack ownership, performance optimization, fast execution, and practical use of AI tools for improving development workflows.
+Answer: Strong full-stack ownership across React, Angular, TypeScript, and Node.js. Deep Web3/DeFi experience with Balancer V3, multicall optimization, and wallet authentication. Performance optimization focus with measurable impact. Self-taught developer who started on an Android phone. Strong written communicator. Practical use of AI tools for improving development workflows.
 
 Question: What are your weaknesses?
 Answer: I sometimes go deep into optimization early. I'm improving by focusing on shipping fast iterations first and refining based on real usage.
 
 Question: Why should we hire you?
-Answer: I bring strong fundamentals and hands-on experience building real systems. I can own features end-to-end, adapt quickly, and deliver scalable solutions efficiently.
+Answer: I bring strong fundamentals and hands-on experience building real production systems. I have shipped real DeFi products handling real money, built production EdTech platforms serving users, and I write clean, type-safe code across the full stack. I can own features end-to-end, adapt quickly, and deliver scalable solutions efficiently.
 
 Question: Describe a challenging project
-Answer: I optimized blockchain interactions in a DeFi application by implementing multicall batching, reducing RPC requests by around 40% and improving performance significantly.
+Answer: At MeowFi, I optimized blockchain interactions in a DeFi application by implementing multicall batching via Viem and Wagmi, reducing RPC requests by around 40% and significantly improving performance. I also architected a type-safe NPM Workspace Monorepo integrating React, Node.js, and tRPC with 100% end-to-end type safety across the entire stack.
 
 Question: Describe a project you're proud of
-Answer: PrepZone, an EdTech platform I built with Angular and Node.js featuring adaptive test generation, RBAC, and SSR optimization for fast performance.
+Answer: PrepZone, an EdTech assessment platform I built solo with Angular, Node.js, Express, and MongoDB. It features secure Google OAuth, a repository of 700+ questions, adaptive mock tests, RBAC, SSR optimization, Chart.js analytics, and MathJax rendering. I shipped it to production with 175 commits across frontend and backend repositories.
 
 Question: Do you have experience with Angular?
-Answer: Yes, I've built production-level applications using Angular with features like signals, SSR, and modular architecture.
+Answer: Yes, I've built production-level applications using Angular with features like signals, zoneless change detection, SSR, RxJS, modular architecture, and Tailwind CSS integration. PrepZone is built entirely with Angular.
 
 Question: Do you have experience with React or Next.js?
-Answer: Yes, I've used React and Next.js across multiple projects, focusing on performance, scalability, and clean architecture.
+Answer: Yes, I've used React and Next.js across multiple projects including MeowFi (DeFi DApp) and my portfolio. I focus on performance, scalability, clean architecture, and end-to-end type safety with tRPC.
 
 Question: Do you have backend experience?
-Answer: Yes, I've worked with Node.js, Express, Spring Boot, MongoDB, and PostgreSQL, designing APIs and handling complex data flows.
+Answer: Yes, I've worked with Node.js, Express, tRPC, Spring Boot, MongoDB, PostgreSQL, Supabase, and Drizzle ORM. I design REST and tRPC APIs, handle complex data flows, and implement authentication with Passport.js and JWT.
 
 Question: Do you have experience with AI tools?
-Answer: Yes, I use AI tools for refactoring, debugging, code review, and improving development workflows through agentic patterns.
+Answer: Yes, I use AI tools for refactoring, debugging, code review, and improving development workflows through agentic patterns. I use OpenCode, Claude, and GitHub Copilot as productivity tools while maintaining deep fundamentals.
 
 Question: Are you open to relocation?
 Answer: Yes, I prefer remote or NCR, but I'm open to Bangalore or Hyderabad for strong opportunities.
 
 Question: What motivates you?
-Answer: Building real-world systems that people actually use and optimizing them for performance and scalability.
+Answer: Building real-world systems that people actually use and optimizing them for performance and scalability. I enjoy the process of turning complex problems into clean, maintainable code.
 
 Question: What are you looking for?
-Answer: A role where I can work on impactful products, grow as an engineer, and contribute to scalable system design.
+Answer: A role where I can work on impactful products, grow as an engineer, and contribute to scalable system design. I want to work with teams that value clean code, performance, and engineering depth.
 
 Question: Do you have startup experience?
-Answer: Yes, I've worked in a fast-paced DeFi startup environment handling full-stack responsibilities.
+Answer: Yes, I worked at MeowFi, a fast-paced DeFi startup, handling full-stack responsibilities including frontend architecture, backend APIs, blockchain integrations, AWS infrastructure, and technical documentation.
 
 Question: How do you handle deadlines?
-Answer: I break work into smaller tasks, prioritize based on impact, and focus on shipping working solutions quickly.
+Answer: I break work into smaller tasks, prioritize based on impact, and focus on shipping working solutions quickly. At MeowFi, I delivered complex DeFi features on tight timelines by focusing on incremental delivery.
 
 Question: Do you work well in teams?
-Answer: Yes, I'm comfortable collaborating, communicating ideas, and incorporating feedback.
+Answer: Yes, I'm comfortable collaborating, communicating ideas, and incorporating feedback. At MeowFi, I worked closely with the team on architecture decisions and code reviews.
 
 Question: Do you have Web3 experience?
-Answer: Yes, I've worked on DeFi systems involving liquidity pools and optimized blockchain interactions using multicall, Wagmi, and Viem.
+Answer: Yes, I've worked on DeFi systems at MeowFi involving Liquidity Pools, Bribe Vaults, and token swaps via Balancer V3. I optimized blockchain interactions using multicall batching with Viem and Wagmi, reducing RPC requests by 40%.
 
 Question: Are you authorized to work in this country?
 Answer: I am legally authorized to work in India. For international roles, I may require visa sponsorship.
@@ -64,24 +64,72 @@ Answer: Male
 Question: Pronouns
 Answer: He/Him
 
-Question: Current Company
-Answer: N/A (Fresher)
+Question: Tell me about your MeowFi experience
+Answer: I was a Full Stack Developer Intern at MeowFi from Feb 2025 to Oct 2025. I architected a scalable NPM Workspace Monorepo integrating React, Node.js, and tRPC with 100% end-to-end type safety. I engineered complex DeFi features including Liquidity Pools and Bribe Vaults via Balancer V3 protocols. I optimized blockchain interactions via Viem, Wagmi, and Multicall, reducing RPC requests by 40%. I deployed an Astro Starlight documentation hub with 20+ technical guides. I built the entire frontend from scratch and managed AWS EC2 infrastructure.
+
+Question: Tell me about PrepZone
+Answer: PrepZone is an EdTech assessment platform I built solo from Jun 2023 to Dec 2024. It features secure Google OAuth, a repository of 700+ questions, adaptive mock tests, RBAC, SSR optimization with Angular, Chart.js real-time analytics, and MathJax rendering. The backend uses Node.js, Express, MongoDB, Passport.js, JWT, and Multer. I shipped it to production with 175 commits across two repositories.
+
+Question: What is your experience with monorepo architecture?
+Answer: At MeowFi, I architected a scalable NPM Workspace Monorepo with 100% end-to-end type safety across React, Node.js, and tRPC. I implemented structured script automation and programmatic validation loops to maintain code quality, streamline refactoring, and accelerate multi-package deployments across internal packages.
+
+Question: Explain your RPC optimization approach
+Answer: At MeowFi, I optimized blockchain interactions by implementing multicall batching via Viem and Wagmi. Instead of making individual RPC calls for each blockchain operation, I batched multiple calls into single requests, reducing total RPC requests by around 40% and significantly improving application performance and user experience.
+
+Question: What is your experience with type-safe APIs?
+Answer: I have deep experience building type-safe APIs with tRPC across multiple projects. At MeowFi, I integrated tRPC with React and Node.js in a monorepo architecture with 100% end-to-end type safety. I also built ReqQuest, a browser-based API client, using tRPC with Supabase, reducing runtime integration errors by 30%.
+
+Question: How do you use AI tools in your workflow?
+Answer: I use AI tools like OpenCode, Claude, and GitHub Copilot as productivity enhancers. I use them for refactoring, debugging, code review, and accelerating development workflows through agentic patterns. I maintain deep fundamentals while leveraging AI to ship faster and write better code.
+
+Question: Do you have DevOps experience?
+Answer: Yes, I have experience with Docker, AWS EC2, Azure App Service, Azure Container Registry, GitHub Actions, and Vercel. At MeowFi, I managed AWS EC2 infrastructure and deployed an Astro documentation hub. I've set up CI/CD pipelines and containerized applications.
+
+Question: What is your experience with databases?
+Answer: I've worked with MongoDB, PostgreSQL, Supabase, and Drizzle ORM across multiple projects. At MeowFi, I handled complex data flows with MongoDB. PrepZone uses MongoDB for question storage and user management. I'm comfortable with both SQL and NoSQL database design.
+
+Question: Tell me about your freelance work
+Answer: I've been freelancing since 2023, delivering 5+ projects including e-commerce platforms and dashboards. I focus on optimizing frontend performance and ensuring secure, scalable backend architecture. I've received high client ratings for my work.
+
+Question: How did you learn coding?
+Answer: I'm self-taught. I started coding on an Android phone using Termux and Neovim, without a laptop or formal CS background initially. I built projects, contributed to open source, and progressively took on more complex challenges. I now use Neovim, tmux, and a terminal-first workflow.
+
+Question: What technologies are you most proficient in?
+Answer: My strongest skills are TypeScript, React, Next.js, Angular, Node.js, tRPC, and Web3 (Solidity, Viem, Wagmi). I also have production experience with MongoDB, PostgreSQL, Docker, AWS, and various frontend frameworks like Astro and Svelte.
+
+Question: Are you currently in college?
+Answer: Yes, I'm a final-year B.Tech student in Electronics and Communication Engineering at Dr. Akhilesh Das Gupta Institute of Professional Studies, graduating in 2026.
 
 Notice period :: Immediate
 Preferred location :: Remote (preferred), NCR (Noida/Gurgaon)
 Willing to relocate :: Yes
 Expected salary :: Open to discussion
 Work type :: Full-time
-Fresher status :: Yes, fresher with 4 years self-taught coding
+Fresher status :: Yes, fresher with 4 years self-taught coding and 8-month internship
 Angular experience :: Yes, 3 years
 React experience :: Yes, 3 years
 Node.js experience :: 3 years
 TypeScript experience :: 3 years
 JavaScript experience :: 4 years
 AI LLM experience :: 1 year
-Total years experience :: 0 professional
+Total years experience :: 0 professional (8-month internship + freelance)
 Current location :: Delhi, India
 Citizenship :: India
 Visa status :: None / Not applicable
 Sponsorship required :: Yes (for international roles)
-Current company :: N/A (Fresher)
+Current company :: MeowFi (Full Stack Developer Intern, ended Oct 2025)
+GitHub :: https://github.com/HaroonSaifi17
+LinkedIn :: https://linkedin.com/in/haroonsaifi17
+Portfolio :: https://www.haroonsaifi.dev
+Twitter :: https://x.com/HaroonSaifi17_
+LeetCode :: https://leetcode.com/u/HaroonSaifi17/
+Languages :: English, Hindi
+Nationality :: Indian
+Degree :: B.Tech in Electronics and Communication Engineering
+University :: Dr. Akhilesh Das Gupta Institute of Professional Studies
+CGPA :: 8.0
+Graduation year :: 2026
+Web3 experience :: Yes, DeFi systems with Balancer V3, Liquidity Pools, Bribe Vaults, multicall optimization
+Docker experience :: Yes
+AWS experience :: Yes, EC2 infrastructure management
+Database experience :: MongoDB, PostgreSQL, Supabase, Drizzle ORM

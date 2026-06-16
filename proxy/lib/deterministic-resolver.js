@@ -21,11 +21,11 @@ const FACT_MATCH_RULES = [
   },
   {
     key: "email",
-    keywords: ["email", "e-mail", "email address", "mail id"],
+    keywords: ["email", "e-mail", "email address", "mail id", "work email", "personal email"],
   },
   {
     key: "phone",
-    keywords: ["phone", "mobile", "telephone", "contact number", "phone number"],
+    keywords: ["phone", "mobile", "telephone", "contact number", "phone number", "cell phone", "cell number"],
   },
   {
     key: "linkedInUrl",
@@ -37,63 +37,43 @@ const FACT_MATCH_RULES = [
   },
   {
     key: "websiteUrl",
-    keywords: ["website", "portfolio", "personal site", "homepage"],
+    keywords: ["website", "portfolio", "personal site", "homepage", "portfolio url", "personal website"],
   },
   {
-    key: "location",
-    keywords: ["current location", "where are you based"],
+    key: "twitterUrl",
+    keywords: ["twitter", "x profile", "x.com", "twitter url"],
   },
   {
-    key: "city",
-    keywords: ["current city", "town"],
-  },
-  {
-    key: "state",
-    keywords: ["current state", "province", "region"],
-  },
-  {
-    key: "country",
-    keywords: ["current country", "nation", "nationality"],
+    key: "leetcodeUrl",
+    keywords: ["leetcode", "leetcode profile", "leetcode url"],
   },
   {
     key: "workAuthorization",
-    keywords: ["authorized to work", "work authorization", "work permit", "eligible to work", "legally authorized"],
+    keywords: ["authorized to work", "work authorization", "work permit", "eligible to work", "legally authorized", "authorization to work"],
   },
   {
     key: "needsSponsorship",
-    keywords: ["sponsorship", "visa sponsorship", "need sponsorship", "require sponsorship", "require a visa"],
-  },
-  {
-    key: "salaryExpectation",
-    keywords: ["salary expectation", "expected salary", "expected ctc", "compensation"],
-  },
-  {
-    key: "currentCTC",
-    keywords: ["current ctc", "current salary", "current compensation"],
-  },
-  {
-    key: "noticePeriod",
-    keywords: ["notice period", "availability", "when can you start", "start date"],
+    keywords: ["visa sponsorship", "visa status", "require sponsorship", "require a visa", "need sponsorship", "sponsorship required"],
   },
   {
     key: "willingToRelocate",
-    keywords: ["willing to relocate", "relocate", "relocation"],
+    keywords: ["willing to relocate", "relocate", "relocation", "willing to relocate?"],
   },
   {
-    key: "graduationYear",
-    keywords: ["graduation year", "year of graduation", "passing year"],
+    key: "salaryExpectation",
+    keywords: ["salary expectation", "expected salary", "expected ctc", "compensation", "pay expectation", "desired salary"],
   },
   {
-    key: "degree",
-    keywords: ["degree", "highest qualification", "education level"],
+    key: "currentCTC",
+    keywords: ["current ctc", "current salary", "current compensation", "current pay"],
   },
   {
-    key: "university",
-    keywords: ["university", "college", "institution"],
+    key: "noticePeriod",
+    keywords: ["notice period", "availability", "when can you start", "start date", "available to start", "earliest start date"],
   },
   {
     key: "totalExperience",
-    keywords: ["total experience", "overall experience", "years of experience"],
+    keywords: ["total experience", "overall experience", "years of experience", "professional experience", "how many years"],
   },
   {
     key: "codingExperience",
@@ -113,45 +93,150 @@ const FACT_MATCH_RULES = [
   },
   {
     key: "llmExperience",
-    keywords: ["llm experience", "ai experience", "genai experience"],
+    keywords: ["llm experience", "ai experience", "genai experience", "artificial intelligence experience"],
+  },
+  {
+    key: "graduationYear",
+    keywords: ["graduation year", "year of graduation", "passing year", "expected graduation"],
+  },
+  {
+    key: "educationLevel",
+    keywords: ["highest level of education", "education level", "highest education"],
+  },
+  {
+    key: "degree",
+    keywords: ["degree", "highest qualification", "degree type", "degree earned"],
+  },
+  {
+    key: "employmentType",
+    keywords: ["employment type", "work type", "job type"],
+  },
+  {
+    key: "university",
+    keywords: ["university", "college", "institution", "school", "education institution"],
+  },
+  {
+    key: "cgpa",
+    keywords: ["cgpa", "gpa", "grade point average", "academic performance"],
+  },
+  {
+    key: "currentCompany",
+    keywords: ["current company", "current employer", "present company", "where do you work"],
+  },
+  {
+    key: "currentRole",
+    keywords: ["current role", "job title", "current title", "designation"],
+  },
+  {
+    key: "nationality",
+    keywords: ["nationality", "national"],
+  },
+  {
+    key: "languages",
+    keywords: ["spoken languages", "language proficiency", "language skills"],
   },
   {
     key: "technicalSkills",
-    keywords: ["technical skills", "skills", "tech stack", "programming languages"],
+    keywords: ["technical skills", "tech stack", "programming languages", "technologies"],
   },
   {
     key: "aboutYou",
-    keywords: ["about yourself", "about you", "bio", "summary"],
+    keywords: ["about yourself", "about you", "bio", "summary", "tell me about yourself", "introduce yourself", "short bio"],
   },
   {
     key: "projects",
-    keywords: ["projects", "project highlights"],
+    keywords: ["project highlights", "key projects", "notable projects"],
   },
   {
     key: "achievements",
-    keywords: ["achievements", "awards", "honors"],
+    keywords: ["achievements", "awards", "honors", "accomplishments"],
   },
   {
     key: "strengths",
-    keywords: ["strengths", "core strengths"],
+    keywords: ["core strengths", "your strengths", "strengths"],
   },
   {
     key: "weaknesses",
-    keywords: ["weaknesses"],
+    keywords: ["your weaknesses", "areas for improvement", "weaknesses"],
   },
   {
     key: "whyHireYou",
-    keywords: ["why should we hire you", "why hire you"],
+    keywords: ["why should we hire you", "why hire you", "why are you a good fit"],
   },
   {
     key: "hobbies",
-    keywords: ["hobbies", "interests"],
+    keywords: ["hobbies", "interests", "extracurricular"],
+  },
+  {
+    key: "gender",
+    keywords: ["gender", "sex"],
+  },
+  {
+    key: "pronouns",
+    keywords: ["pronouns"],
+  },
+  {
+    key: "fresherStatus",
+    keywords: ["fresh graduate", "recent graduate", "new graduate", "entry level", "fresher"],
+  },
+  {
+    key: "location",
+    keywords: ["current location", "where are you based", "location"],
+  },
+  {
+    key: "address",
+    keywords: ["street address", "full address", "home address", "address"],
+  },
+  {
+    key: "city",
+    keywords: ["current city", "town", "city"],
+  },
+  {
+    key: "state",
+    keywords: ["current state", "province", "region", "state"],
+  },
+  {
+    key: "country",
+    keywords: ["current country", "nation", "country"],
+  },
+  {
+    key: "howDidYouHear",
+    keywords: ["how did you hear", "referral source", "how did you find", "recruiter", "how did you hear about"],
+  },
+  {
+    key: "coverLetter",
+    keywords: ["cover letter", "coverletter", "cover note"],
+  },
+  {
+    key: "dateOfBirth",
+    keywords: ["date of birth", "dob", "birth date", "birthday"],
+  },
+  {
+    key: "maritalStatus",
+    keywords: ["marital status", "married", "single"],
+  },
+  {
+    key: "nationality",
+    keywords: ["nationalities", "what nationalities"],
+  },
+  {
+    key: "discipline",
+    keywords: ["discipline", "field of study", "major", "study area"],
+  },
+  {
+    key: "postcode",
+    keywords: ["postcode", "zip code", "postal code", "pincode", "pin code"],
+  },
+  {
+    key: "preferredName",
+    keywords: ["preferred name", "nickname", "what should we call you"],
   },
 ];
 
 const BOOLEAN_FACT_KEYS = new Set([
   "workAuthorization",
   "needsSponsorship",
+  "willingToRelocate",
 ]);
 
 function fieldContext(field) {
@@ -184,7 +269,14 @@ function includesAny(text, patterns) {
     return false;
   }
 
-  return patterns.some((pattern) => target.includes(normalizeText(pattern)));
+  return patterns.some((pattern) => {
+    const normalizedPattern = normalizeText(pattern);
+    if (!normalizedPattern) {
+      return false;
+    }
+    const regex = new RegExp(`(?:^|[\\s,;|/])${normalizedPattern}(?:[\\s,;|/]|$)`, "i");
+    return regex.test(target);
+  });
 }
 
 function mapFieldToFactKey(field) {
@@ -194,6 +286,89 @@ function mapFieldToFactKey(field) {
     if (includesAny(context, rule.keywords)) {
       return rule.key;
     }
+  }
+
+  const label = normalizeText(field.label);
+  const name = normalizeText(field.name);
+
+  if ((label.includes("authorized") && label.includes("work")) || label === "work authorization" || name === "workauth") {
+    return "workAuthorization";
+  }
+
+  if (label === "name" || label === "full name" || name === "name" || name === "fullname") {
+    return "fullName";
+  }
+
+  if (label === "first name" || name === "firstname" || name === "first_name") {
+    return "firstName";
+  }
+
+  if (label === "last name" || name === "lastname" || name === "last_name") {
+    return "lastName";
+  }
+
+  if (label === "address" || name === "address") {
+    return "address";
+  }
+
+  if (label.includes("country") && !label.includes("authorized")) {
+    return "country";
+  }
+
+  if (label.includes("education") && (label.includes("level") || label.includes("highest"))) {
+    return "degree";
+  }
+
+  if (label.includes("employment type") || label.includes("work type") || label.includes("job type")) {
+    return "workType";
+  }
+
+  if (label.includes("relocat")) {
+    return "willingToRelocate";
+  }
+
+  if (label.includes("how did you hear") || label.includes("referral") || label.includes("source") || label.includes("how did you find")) {
+    return "howDidYouHear";
+  }
+
+  if (label.includes("earliest start") || label.includes("available to start") || label.includes("start date") || label.includes("when can you")) {
+    return "noticePeriod";
+  }
+
+  if (label.includes("pronouns")) {
+    return "pronouns";
+  }
+
+  if (label.includes("gender") || label === "sex") {
+    return "gender";
+  }
+
+  if (label.includes("nationality") || label === "national") {
+    return "nationality";
+  }
+
+  if (label.includes("postcode") || label.includes("zip code") || label.includes("postal code") || name === "postcode" || name === "zipcode" || name === "zip_code") {
+    return "postcode";
+  }
+
+  if (label.includes("discipline") || label.includes("field of study") || label.includes("major")) {
+    return "discipline";
+  }
+
+  if (label.includes("preferred name") || label.includes("nickname") || name === "preferredname" || name === "preferred_name") {
+    return "preferredName";
+  }
+
+  if (label.includes("hispanic") || label.includes("latino")) {
+    return "hispanicLatino";
+  }
+
+  if (label.includes("veteran")) {
+    return "veteranStatus";
+  }
+
+  if (label.includes("disability")) {
+    return "disabilityStatus";
   }
 
   return null;
@@ -217,6 +392,62 @@ function normalizeOptionValue(field, rawValue) {
     }
   }
 
+  const text = String(rawValue || "").trim().toLowerCase();
+  if (text === "india" || text === "indian") {
+    const indiaOption = field.options.find((opt) => {
+      const label = String(opt.label || "").toLowerCase();
+      const value = String(opt.value || "").toLowerCase();
+      return label.includes("india") || value === "in" || value === "india";
+    });
+    if (indiaOption) {
+      return indiaOption.value;
+    }
+  }
+
+  if (text === "immediate" || text === "immediately") {
+    const immediateOption = field.options.find((opt) => {
+      const label = String(opt.label || "").toLowerCase();
+      const value = String(opt.value || "").toLowerCase();
+      return label.includes("immediate") || value.includes("immediate");
+    });
+    if (immediateOption) {
+      return immediateOption.value;
+    }
+  }
+
+  if (text === "full-time" || text === "full time" || text === "fulltime") {
+    const fullTimeOption = field.options.find((opt) => {
+      const label = String(opt.label || "").toLowerCase();
+      const value = String(opt.value || "").toLowerCase();
+      return label.includes("full") || value.includes("full");
+    });
+    if (fullTimeOption) {
+      return fullTimeOption.value;
+    }
+  }
+
+  if (text === "yes") {
+    const yesOption = field.options.find((opt) => {
+      const label = String(opt.label || "").toLowerCase();
+      const value = String(opt.value || "").toLowerCase();
+      return label === "yes" || label === "authorized" || value === "yes" || value === "1" || value === "authorized";
+    });
+    if (yesOption) {
+      return yesOption.value;
+    }
+  }
+
+  if (text === "no") {
+    const noOption = field.options.find((opt) => {
+      const label = String(opt.label || "").toLowerCase();
+      const value = String(opt.value || "").toLowerCase();
+      return label === "no" || label === "not authorized" || value === "no" || value === "0" || value === "not_authorized";
+    });
+    if (noOption) {
+      return noOption.value;
+    }
+  }
+
   return null;
 }
 
@@ -232,11 +463,48 @@ function normalizeValueForFieldType(field, value) {
   }
 
   if (type === "radio" || type === "select") {
+    if (typeof value === "boolean") {
+      const boolOption = chooseOption(value ? "yes" : "no", field.options);
+      if (boolOption !== null) {
+        return boolOption;
+      }
+      const trueOption = field.options.find((opt) => {
+        const val = String(opt.value || "").toLowerCase();
+        const lbl = String(opt.label || "").toLowerCase();
+        return val === "1" || val === "true" || lbl === "yes" || lbl === "authorized";
+      });
+      const falseOption = field.options.find((opt) => {
+        const val = String(opt.value || "").toLowerCase();
+        const lbl = String(opt.label || "").toLowerCase();
+        return val === "0" || val === "false" || lbl === "no" || lbl === "not authorized";
+      });
+      if (value && trueOption) return trueOption.value;
+      if (!value && falseOption) return falseOption.value;
+      return null;
+    }
     return normalizeOptionValue(field, value);
   }
 
   const text = String(value).trim();
   return text || null;
+}
+
+function normalizeBooleanFactForField(field, factKey, value) {
+  if (!BOOLEAN_FACT_KEYS.has(factKey)) {
+    return null;
+  }
+
+  const boolValue = toBoolean(value);
+  if (boolValue === null) {
+    return null;
+  }
+
+  if (field.type === "select" || field.type === "radio") {
+    const match = chooseOption(boolValue ? "yes" : "no", field.options || []);
+    if (match !== null) return match;
+  }
+
+  return boolValue ? "Yes" : "No";
 }
 
 function confidenceForFact(factKey, normalizedValue) {
@@ -278,8 +546,16 @@ function resolveDeterministic(fields, facts, answerMemory) {
     }
 
     const factValue = facts[factKey];
-    const normalizedValue = normalizeValueForFieldType(field, factValue);
-    if (normalizedValue === null) {
+
+    let normalizedValue;
+    const boolNorm = normalizeBooleanFactForField(field, factKey, factValue);
+    if (boolNorm !== null) {
+      normalizedValue = boolNorm;
+    } else {
+      normalizedValue = normalizeValueForFieldType(field, factValue);
+    }
+
+    if (normalizedValue === null || typeof normalizedValue === "undefined") {
       unresolved.push(field);
       continue;
     }

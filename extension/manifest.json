@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Applied",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Smart, one-click job application assistant.",
   "icons": {
     "128": "logo.svg"

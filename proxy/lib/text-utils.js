@@ -155,6 +155,28 @@ function getOptionObjects(options) {
     .filter((option) => option.label || option.value);
 }
 
+function extractFirstNumber(text) {
+  const match = String(text || "").match(/(\d+(?:\.\d+)?)/);
+  return match ? parseFloat(match[1]) : null;
+}
+
+function parseRangeEndpoints(label) {
+  const normalized = normalizeText(label);
+  const rangeMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:to|-|–|—)\s*(\d+(?:\.\d+)?)/);
+  if (rangeMatch) {
+    return { low: parseFloat(rangeMatch[1]), high: parseFloat(rangeMatch[2]) };
+  }
+  const singleMatch = normalized.match(/(\d+(?:\.\d+)?)\s*\+?/);
+  if (singleMatch) {
+    const num = parseFloat(singleMatch[1]);
+    if (normalized.includes("+")) {
+      return { low: num, high: Infinity };
+    }
+    return { low: num, high: num };
+  }
+  return null;
+}
+
 function chooseOption(rawValue, options) {
   const optionObjects = getOptionObjects(options);
   const value = String(rawValue || "").trim();
@@ -193,23 +215,41 @@ function chooseOption(rawValue, options) {
     }
   }
 
-  let best = null;
+  const inputNumber = extractFirstNumber(value);
+  let candidates = [];
   for (const option of optionObjects) {
     const score = Math.max(
       overlapScore(normalizedValue, option.label),
       overlapScore(normalizedValue, option.value),
     );
-
-    if (!best || score > best.score) {
-      best = {
-        score,
-        value: option.value,
-      };
-    }
+    candidates.push({ score, value: option.value, label: option.label });
   }
 
-  if (best && best.score >= 0.5) {
-    return best.value;
+  candidates.sort((a, b) => b.score - a.score);
+
+  if (candidates.length && candidates[0].score >= 0.5) {
+    if (candidates.length > 1 && candidates[0].score === candidates[1].score && inputNumber !== null) {
+      let best = candidates[0];
+      let bestDistance = Infinity;
+      for (const candidate of candidates) {
+        if (candidate.score < candidates[0].score) break;
+        const range = parseRangeEndpoints(candidate.label);
+        if (range) {
+          if (inputNumber >= range.low && inputNumber <= range.high) {
+            const distance = Math.abs(inputNumber - (range.low + range.high) / 2);
+            if (distance < bestDistance) {
+              bestDistance = distance;
+              best = candidate;
+            }
+          }
+        }
+      }
+      if (bestDistance < Infinity) {
+        return best.value;
+      }
+    }
+
+    return candidates[0].value;
   }
 
   return null;
